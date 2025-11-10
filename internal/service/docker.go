@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // ContainerConfig holds configuration for creating a container
@@ -277,12 +278,19 @@ func (s *DockerService) ExecCommand(ctx context.Context, containerID string, cmd
 	defer resp.Close()
 
 	// Read output
-	var output bytes.Buffer
-	_, err = io.Copy(&output, resp.Reader)
+	// When Tty=false, Docker uses stream multiplexing with 8-byte headers
+	// We need to use stdcopy.StdCopy to properly demultiplex stdout/stderr
+	var stdout, stderr bytes.Buffer
+	_, err = stdcopy.StdCopy(&stdout, &stderr, resp.Reader)
 	if err != nil {
 		utils.Error("Failed to read exec output", "execID", utils.ShortID(execID.ID), "error", err)
 		return "", fmt.Errorf("failed to read exec output: %w", err)
 	}
+
+	// Combine stdout and stderr
+	var output bytes.Buffer
+	output.Write(stdout.Bytes())
+	output.Write(stderr.Bytes())
 
 	outputStr := output.String()
 	utils.Debug("Command executed successfully", "containerID", utils.ShortID(containerID), "outputLength", len(outputStr))
