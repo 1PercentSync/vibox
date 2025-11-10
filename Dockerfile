@@ -21,7 +21,9 @@ COPY . .
 # Build the application
 # CGO_ENABLED=0 for static binary
 # -ldflags="-w -s" to reduce binary size
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+# TARGETARCH is automatically set by Docker buildx (amd64, arm64, etc.)
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build \
     -ldflags="-w -s" \
     -o /build/server \
     ./cmd/server
