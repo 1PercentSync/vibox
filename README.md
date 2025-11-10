@@ -78,7 +78,7 @@ your-domain.com {
 
 ### 后端（第一阶段）
 
-- **语言**：Go 1.21+
+- **语言**：Go 1.25+
 - **Web 框架**：Gin
 - **Docker SDK**：github.com/docker/docker/client
 - **WebSocket**：github.com/gorilla/websocket
@@ -167,7 +167,7 @@ http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token
 
 ### 环境要求
 
-- Go 1.21+
+- Go 1.25+
 - Docker
 - Git
 

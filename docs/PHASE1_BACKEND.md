@@ -340,7 +340,7 @@ func Load() *Config {
 ### Phase 0: 环境准备（1 天）
 
 **任务清单**：
-- [ ] 安装 Go 1.21+
+- [ ] 安装 Go 1.25+
 - [ ] 安装 Docker
 - [ ] 初始化项目：`go mod init vibox`
 - [ ] 创建目录结构

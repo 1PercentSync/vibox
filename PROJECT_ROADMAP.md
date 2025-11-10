@@ -19,7 +19,7 @@ ViBox 是一个基于 Docker 的工作空间管理系统，提供 Web 界面来�
 **目标**：实现完整的 Go 后端服务，提供所有核心 API
 
 **技术栈**：
-- 语言：Go 1.21+
+- 语言：Go 1.25+
 - Web 框架：Gin
 - Docker SDK：github.com/docker/docker/client
 - WebSocket：github.com/gorilla/websocket

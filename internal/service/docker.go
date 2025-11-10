@@ -12,6 +12,7 @@ import (
 	"github.com/1PercentSync/vibox/pkg/utils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 )
@@ -66,10 +67,10 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 	utils.Info("Creating container", "image", cfg.Image, "name", cfg.Name)
 
 	// Use default image if not specified
-	image := cfg.Image
-	if image == "" {
-		image = s.config.DefaultImage
-		utils.Debug("Using default image", "image", image)
+	imageName := cfg.Image
+	if imageName == "" {
+		imageName = s.config.DefaultImage
+		utils.Debug("Using default image", "image", imageName)
 	}
 
 	// Use configured resource limits if not specified
@@ -83,20 +84,20 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 	}
 
 	// Pull image if not exists
-	utils.Debug("Pulling image if needed", "image", image)
-	reader, err := s.client.ImagePull(ctx, image, types.ImagePullOptions{})
+	utils.Debug("Pulling image if needed", "image", imageName)
+	reader, err := s.client.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
-		utils.Error("Failed to pull image", "image", image, "error", err)
-		return "", fmt.Errorf("failed to pull image %s: %w", image, err)
+		utils.Error("Failed to pull image", "image", imageName, "error", err)
+		return "", fmt.Errorf("failed to pull image %s: %w", imageName, err)
 	}
 	// Consume the reader to ensure pull completes
 	_, _ = io.Copy(io.Discard, reader)
 	reader.Close()
-	utils.Debug("Image pulled successfully", "image", image)
+	utils.Debug("Image pulled successfully", "image", imageName)
 
 	// Create container configuration
 	containerConfig := &container.Config{
-		Image: image,
+		Image: imageName,
 		Tty:   true, // Enable TTY for interactive shells
 		OpenStdin: true,
 		AttachStdin: true,
@@ -143,7 +144,7 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 func (s *DockerService) StartContainer(ctx context.Context, containerID string) error {
 	utils.Info("Starting container", "containerID", containerID[:12])
 
-	err := s.client.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+	err := s.client.ContainerStart(ctx, containerID, container.StartOptions{})
 	if err != nil {
 		utils.Error("Failed to start container", "containerID", containerID[:12], "error", err)
 		return fmt.Errorf("failed to start container: %w", err)
@@ -177,7 +178,7 @@ func (s *DockerService) StopContainer(ctx context.Context, containerID string, t
 func (s *DockerService) RemoveContainer(ctx context.Context, containerID string) error {
 	utils.Info("Removing container", "containerID", containerID[:12])
 
-	err := s.client.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{
+	err := s.client.ContainerRemove(ctx, containerID, container.RemoveOptions{
 		Force: true, // Force remove even if running
 	})
 	if err != nil {
@@ -255,7 +256,7 @@ func (s *DockerService) ExecCommand(ctx context.Context, containerID string, cmd
 	utils.Debug("Executing command in container", "containerID", containerID[:12], "cmd", strings.Join(cmd, " "))
 
 	// Create exec instance
-	execConfig := types.ExecConfig{
+	execConfig := container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
@@ -268,7 +269,7 @@ func (s *DockerService) ExecCommand(ctx context.Context, containerID string, cmd
 	}
 
 	// Attach to exec instance
-	resp, err := s.client.ContainerExecAttach(ctx, execID.ID, types.ExecStartCheck{})
+	resp, err := s.client.ContainerExecAttach(ctx, execID.ID, container.ExecStartOptions{})
 	if err != nil {
 		utils.Error("Failed to attach to exec instance", "execID", execID.ID[:12], "error", err)
 		return "", fmt.Errorf("failed to attach to exec instance: %w", err)
@@ -330,7 +331,7 @@ func (s *DockerService) CopyToContainer(ctx context.Context, containerID string,
 	}
 
 	// Copy to container
-	err := s.client.CopyToContainer(ctx, containerID, dir, &buf, types.CopyToContainerOptions{})
+	err := s.client.CopyToContainer(ctx, containerID, dir, &buf, container.CopyToContainerOptions{})
 	if err != nil {
 		utils.Error("Failed to copy to container", "containerID", containerID[:12], "path", path, "error", err)
 		return fmt.Errorf("failed to copy to container: %w", err)

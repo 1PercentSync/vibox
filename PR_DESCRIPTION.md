@@ -17,7 +17,7 @@ All components for Module 1 Agent 1 have been completed and tested.
 - Default values for optional configurations
 
 ✅ **Logger Utility** (`pkg/utils/logger.go`)
-- Structured logging using Go 1.21+ `log/slog`
+- Structured logging using Go 1.25+ `log/slog`
 - Support DEBUG, INFO, WARN, ERROR levels
 - JSON format output
 
