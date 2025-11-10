@@ -27,7 +27,6 @@ Module 3a 已成功完成。数据层提供了完整的 Domain 模型定义和�
 #### WorkspaceConfig 结构体
 - ✅ Image - Docker 镜像
 - ✅ Scripts - 初始化脚本列表
-- ✅ ExposedPorts - 暴露的端口列表
 
 #### Script 结构体
 - ✅ Name - 脚本名称
@@ -165,7 +164,6 @@ type Workspace struct {
 type WorkspaceConfig struct {
     Image        string
     Scripts      []Script
-    ExposedPorts []int
 }
 
 type Script struct {
@@ -243,7 +241,6 @@ func main() {
                     Order:   1,
                 },
             },
-            ExposedPorts: []int{8080, 3000},
         },
     }
 

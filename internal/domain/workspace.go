@@ -26,9 +26,8 @@ type Workspace struct {
 
 // WorkspaceConfig holds configuration for a workspace
 type WorkspaceConfig struct {
-	Image        string   `json:"image"`
-	Scripts      []Script `json:"scripts,omitempty"`
-	ExposedPorts []int    `json:"exposed_ports,omitempty"`
+	Image   string   `json:"image"`
+	Scripts []Script `json:"scripts,omitempty"`
 }
 
 // Script represents an initialization script to be executed in the workspace

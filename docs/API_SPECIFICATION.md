@@ -160,8 +160,7 @@ Content-Type: application/json
         "content": "#!/bin/bash\nuseradd -m -s /bin/bash developer",
         "order": 2
       }
-    ],
-    "exposed_ports": []
+    ]
   }
 }
 ```
@@ -220,8 +219,7 @@ Content-Type: application/json
     "updated_at": "2025-11-10T12:01:30Z",
     "config": {
       "image": "ubuntu:22.04",
-      "scripts": [...],
-      "exposed_ports": []
+      "scripts": [...]
     }
   },
   {
@@ -233,8 +231,7 @@ Content-Type: application/json
     "updated_at": "2025-11-09T11:00:00Z",
     "config": {
       "image": "alpine:latest",
-      "scripts": [],
-      "exposed_ports": []
+      "scripts": []
     }
   }
 ]
@@ -277,8 +274,7 @@ Content-Type: application/json
   "updated_at": "2025-11-10T12:01:30Z",
   "config": {
     "image": "ubuntu:22.04",
-    "scripts": [...],
-    "exposed_ports": []
+    "scripts": [...]
   }
 }
 ```
@@ -539,6 +535,11 @@ for {
 ### 访问容器内 HTTP 服务
 
 将请求代理转发到容器内指定端口的 HTTP 服务。
+
+**设计说明**：
+- 端口访问采用**动态模式**：无需预先声明端口，可以访问容器的任意端口
+- 工作空间容器**不会在宿主机上暴露端口**，所有访问都通过后端代理转发
+- 如果端口没有服务监听，将返回 502 或 504 错误
 
 ```http
 {METHOD} /forward/:id/:port/*path?token={token}

@@ -19,11 +19,10 @@ import (
 
 // ContainerConfig holds configuration for creating a container
 type ContainerConfig struct {
-	Image        string
-	Name         string
-	MemoryLimit  int64
-	CPULimit     int64
-	ExposedPorts []string
+	Image       string
+	Name        string
+	MemoryLimit int64
+	CPULimit    int64
 }
 
 // DockerService handles all Docker operations

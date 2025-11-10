@@ -229,7 +229,6 @@ type ContainerConfig struct {
     Name         string
     MemoryLimit  int64
     CPULimit     int64
-    ExposedPorts []string
 }
 ```
 
@@ -300,7 +299,6 @@ type Workspace struct {
 type WorkspaceConfig struct {
     Image        string   `json:"image"`
     Scripts      []Script `json:"scripts,omitempty"`
-    ExposedPorts []int    `json:"exposed_ports,omitempty"`
 }
 
 type Script struct {

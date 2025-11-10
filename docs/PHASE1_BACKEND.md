@@ -201,7 +201,6 @@ type Workspace struct {
 type WorkspaceConfig struct {
     Image        string         `json:"image"`         // 默认 ubuntu:22.04
     Scripts      []Script       `json:"scripts"`       // 初始化脚本
-    ExposedPorts []ExposedPort  `json:"exposed_ports"` // 暴露的端口
 }
 ```
 
@@ -474,6 +473,11 @@ websocat "ws://localhost:3000/ws/terminal/{workspace-id}?token=your-secret-token
 - 连接断开后资源清理
 
 ### Phase 4: HTTP 端口转发（2-3 天）
+
+**设计说明**：
+- 端口访问采用**动态模式**：用户可以访问容器的任意端口，无需预先声明
+- 如果端口没有服务监听，返回 502 或 504 错误
+- 工作空间容器**不会在宿主机上暴露端口**，仅通过后端代理访问
 
 **任务清单**：
 - [ ] 实现 ProxyService

@@ -43,11 +43,10 @@ Complete Docker service implementation with the following features:
 
 ```go
 type ContainerConfig struct {
-    Image        string   // Docker image to use
-    Name         string   // Container name
-    MemoryLimit  int64    // Memory limit in bytes
-    CPULimit     int64    // CPU limit in nanoseconds
-    ExposedPorts []string // Ports to expose
+    Image       string   // Docker image to use
+    Name        string   // Container name
+    MemoryLimit int64    // Memory limit in bytes
+    CPULimit    int64    // CPU limit in nanoseconds
 }
 ```
 

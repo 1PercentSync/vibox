@@ -60,9 +60,8 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req CreateWorksp
 		CreatedAt: now,
 		UpdatedAt: now,
 		Config: domain.WorkspaceConfig{
-			Image:        image,
-			Scripts:      req.Scripts,
-			ExposedPorts: []int{}, // Initialize as empty array
+			Image:   image,
+			Scripts: req.Scripts,
 		},
 	}
 
