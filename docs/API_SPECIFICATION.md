@@ -59,22 +59,38 @@ X-Request-ID: {request-id}
 
 所有 API 都需要提供有效的 API Token。
 
-#### 方式 1：HTTP Header（推荐）
+#### 方式 1：X-ViBox-Token Header（推荐）
+
+```http
+X-ViBox-Token: {your-api-token}
+```
+
+**推荐理由**：
+- 避免与容器内应用的 `Authorization` header 冲突
+- 在代理请求时，ViBox 会自动移除此 header，不会泄露给容器
+- 容器内应用可以使用自己的认证机制
+
+#### 方式 2：Authorization Header（向后兼容）
 
 ```http
 Authorization: Bearer {your-api-token}
 ```
 
-#### 方式 2：查询参数
+**注意**：使用此方式时，token 会被转发到容器内应用
+
+#### 方式 3：查询参数（WebSocket 专用）
 
 ```http
-GET /api/workspaces?token={your-api-token}
+GET /ws/terminal/:id?token={your-api-token}
 ```
 
-**注意**：
-- WebSocket 连接必须使用查询参数方式
-- 端口转发可以使用任一方式
+**使用场景**：
+- WebSocket 连接必须使用查询参数方式（浏览器限制）
+- HTTP 请求不推荐使用（token 会出现在 URL 日志中）
+
+**配置**：
 - Token 通过环境变量 `API_TOKEN` 配置
+- 鉴权优先级：`X-ViBox-Token` > `Authorization` > `?token=`
 
 ### 鉴权失败响应
 
@@ -541,8 +557,15 @@ for {
 - 工作空间容器**不会在宿主机上暴露端口**，所有访问都通过后端代理转发
 - 如果端口没有服务监听，将返回 502 或 504 错误
 
+**鉴权说明**：
+- ⚠️ **必须提供 ViBox API Token** 才能访问端口转发功能
+- 推荐使用 `X-ViBox-Token` header（避免与容器应用的认证冲突）
+- ViBox 会自动移除 `X-ViBox-Token` header，不会传递给容器
+- 容器内应用的 `Authorization` header 会被完整保留
+
 ```http
-{METHOD} /forward/:id/:port/*path?token={token}
+{METHOD} /forward/:id/:port/*path
+X-ViBox-Token: {your-api-token}
 ```
 
 #### 路径参数
@@ -553,12 +576,6 @@ for {
 | `port` | integer | 容器内端口号 |
 | `path` | string | 请求路径（可选） |
 
-#### 查询参数
-
-| 参数 | 类型 | 必需 | 说明 |
-|------|------|------|------|
-| `token` | string | ✅ | API Token |
-
 #### 示例
 
 **访问容器内 8080 端口的 HTTP 服务**：
@@ -567,32 +584,61 @@ for {
 # 容器内启动服务
 docker exec {container} python3 -m http.server 8080
 
-# 通过 ViBox 访问
+# 方式1：使用 X-ViBox-Token header（推荐）
+curl -H "X-ViBox-Token: your-token" \
+  http://localhost:3000/forward/ws-a1b2c3d4/8080/
+
+# 方式2：使用查询参数（备选）
 curl "http://localhost:3000/forward/ws-a1b2c3d4/8080/?token=your-token"
 ```
 
 **访问特定路径**：
 
 ```bash
-curl "http://localhost:3000/forward/ws-a1b2c3d4/8080/api/users?token=your-token"
+curl -H "X-ViBox-Token: your-token" \
+  http://localhost:3000/forward/ws-a1b2c3d4/8080/api/users
 # 实际访问：http://{container-ip}:8080/api/users
 ```
 
 **POST 请求**：
 
 ```bash
-curl -X POST "http://localhost:3000/forward/ws-a1b2c3d4/3000/api/data?token=your-token" \
+curl -X POST http://localhost:3000/forward/ws-a1b2c3d4/3000/api/data \
+  -H "X-ViBox-Token: your-token" \
   -H "Content-Type: application/json" \
   -d '{"key": "value"}'
 ```
 
+**同时使用容器应用的认证**：
+
+```bash
+# ViBox 层认证 + 容器应用层认证
+curl http://localhost:3000/forward/ws-a1b2c3d4/3000/api/protected \
+  -H "X-ViBox-Token: vibox-api-token" \
+  -H "Authorization: Bearer app-user-token"
+# X-ViBox-Token 会被移除
+# Authorization 会被转发给容器内应用
+```
+
 ### 代理行为
 
-- **请求头**：原样转发（除 `Host`）
+#### 请求处理
+- **请求头**：原样转发（除特殊处理的 header）
+  - `Host`: 自动修改为容器 IP:端口
+  - `X-ViBox-Token`: **自动移除**，不会传递给容器
+  - `Authorization`: 完整保留，传递给容器应用
+  - 其他 header: 原样转发
 - **请求体**：原样转发
+- **查询参数**：原样转发（包括 `?token=` 如果存在）
+
+#### 响应处理
 - **响应头**：原样返回
 - **响应体**：原样返回
 - **状态码**：原样返回
+
+#### 自动添加的 Header
+- `X-Forwarded-For`: 客户端 IP
+- `X-Forwarded-Proto`: http 或 https
 
 ### 错误响应
 

@@ -33,8 +33,16 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  8192,
 	WriteBufferSize: 8192,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins in development
-		// TODO: Configure allowed origins based on environment
+		// Currently allowing all origins for simplicity.
+		// Since we use API token authentication (not cookies),
+		// the CSRF risk from CheckOrigin is minimal.
+		//
+		// If token is compromised, attackers can make direct API calls anyway.
+		// CheckOrigin only prevents malicious websites from using
+		// tokens stored in user's browser.
+		//
+		// TODO: For production with sensitive data, consider adding
+		// origin whitelist via ALLOWED_ORIGINS env var.
 		return true
 	},
 }

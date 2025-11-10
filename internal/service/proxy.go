@@ -104,6 +104,10 @@ func (s *ProxyService) createReverseProxy(containerIP string, port int) *httputi
 		// Call the original director first
 		originalDirector(req)
 
+		// Remove ViBox authentication headers to prevent leaking to container
+		// This allows container applications to use their own authentication
+		req.Header.Del("X-ViBox-Token")
+
 		// Log the outgoing request
 		utils.Debug("Proxying request",
 			"method", req.Method,

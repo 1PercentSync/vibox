@@ -30,6 +30,20 @@ func NewProxyHandler(
 }
 
 // Forward handles ANY /forward/:id/:port/*path - Forward requests to container port
+//
+// Authentication:
+//   - Requires X-ViBox-Token header or Authorization: Bearer token
+//   - X-ViBox-Token will be automatically removed before forwarding to container
+//   - Container applications can use their own Authorization header
+//
+// Example:
+//   curl -H "X-ViBox-Token: vibox-token" \
+//        -H "Authorization: Bearer app-token" \
+//        http://localhost:3000/forward/ws-abc/8080/api/data
+//
+//   The container will receive:
+//     Authorization: Bearer app-token  (kept)
+//     X-ViBox-Token: (removed)
 func (h *ProxyHandler) Forward(c *gin.Context) {
 	workspaceID := c.Param("id")
 	portStr := c.Param("port")
