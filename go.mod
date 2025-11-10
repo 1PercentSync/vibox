@@ -1,6 +1,8 @@
 module github.com/1PercentSync/vibox
 
-go 1.25
+go 1.24.0
+
+toolchain go1.24.7
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
