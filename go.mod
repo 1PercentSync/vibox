@@ -1,11 +1,14 @@
 module github.com/1PercentSync/vibox
 
-go 1.25
+go 1.24.0
+
+toolchain go1.24.7
 
 require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 )
 
 require (
