@@ -103,8 +103,8 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 		AttachStdin: true,
 		AttachStdout: true,
 		AttachStderr: true,
-		// Keep container running
-		Cmd: []string{"/bin/bash"},
+		// Keep container running - use /bin/sh for maximum compatibility (including Alpine)
+		Cmd: []string{"/bin/sh"},
 	}
 
 	// Host configuration with resource limits

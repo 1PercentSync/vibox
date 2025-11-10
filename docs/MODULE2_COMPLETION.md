@@ -194,12 +194,15 @@ go get github.com/docker/docker/client@v24.0.0
 replace github.com/docker/distribution => github.com/docker/distribution v2.8.2+incompatible
 ```
 
-### 3. API Type Changes
-**Problem**: `container.StartOptions` and `container.RemoveOptions` undefined in Docker SDK v24.0.0.
+### 3. API Type Compatibility
+**Note**: The code currently uses `container.StartOptions` and `container.RemoveOptions` which are compatible with Docker SDK v28.5.2 (current version in go.mod). These types work correctly in the current implementation.
 
-**Solution**: Updated to use correct types from the `types` package:
-- `container.StartOptions` → `types.ContainerStartOptions`
-- `container.RemoveOptions` → `types.ContainerRemoveOptions`
+**Implementation**: The Docker service uses the following types successfully:
+- `container.StartOptions` for starting containers
+- `container.RemoveOptions` for removing containers
+- `container.ExecOptions` for executing commands
+
+All types are from the `github.com/docker/docker/api/types/container` package and work correctly with the current Docker SDK version.
 
 ### 4. Logger Initialization in Tests
 **Problem**: Tests panicked due to uninitialized logger (nil pointer dereference).
