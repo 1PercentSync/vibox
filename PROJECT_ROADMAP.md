@@ -302,6 +302,8 @@ Go 后端服务（唯一对外端口）
 
 ### 第一阶段文档
 - [第一阶段后端实现](./docs/PHASE1_BACKEND.md) - 详细开发计划和架构设计
+- [任务拆分方案](./docs/PHASE1_TASK_BREAKDOWN.md) - 模块化开发和并行任务分配
+- [API 规范](./docs/API_SPECIFICATION.md) - RESTful API 和 WebSocket 接口定义
 
 ### 技术参考
 - [Go 官方文档](https://go.dev/doc/)
@@ -313,5 +315,6 @@ Go 后端服务（唯一对外端口）
 
 ## 版本历史
 
+- **v0.2** (2025-11-10): 完成任务拆分和 API 规范文档
 - **v0.1** (2025-11-10): 项目启动，完成第一阶段规划
 - 后续版本根据开发进度更新
