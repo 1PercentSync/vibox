@@ -31,6 +31,10 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
+    # Add user to docker group to access socket
+    group_add:
+      - "990"  # docker group
+
     # Health check
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]

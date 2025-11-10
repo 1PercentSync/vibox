@@ -119,8 +119,12 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 		},
 	}
 
-	// Network configuration
-	networkConfig := &network.NetworkingConfig{}
+	// Network configuration - connect to vibox-network for inter-container communication
+	networkConfig := &network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{
+			"vibox-network": {},
+		},
+	}
 
 	// Create container
 	resp, err := s.client.ContainerCreate(

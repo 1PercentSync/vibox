@@ -101,13 +101,25 @@ func (h *ProxyHandler) Forward(c *gin.Context) {
 	}
 
 	// 3. Proxy the request
+	// Extract the path after /forward/:id/:port
+	// The *path parameter includes the leading slash
+	targetPath := c.Param("path")
+	if targetPath == "" {
+		targetPath = "/"
+	}
+
 	utils.Debug("Proxying request to container",
 		"workspace_id", workspaceID,
 		"container_id", workspace.ContainerID,
 		"port", port,
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,
+		"target_path", targetPath,
 	)
+
+	// Modify request path to remove the /forward/:id/:port prefix
+	c.Request.URL.Path = targetPath
+	c.Request.URL.RawPath = targetPath
 
 	err = h.proxyService.ProxyRequest(c.Writer, c.Request, workspace.ContainerID, port)
 	if err != nil {
