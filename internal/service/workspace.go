@@ -189,6 +189,12 @@ func (s *WorkspaceService) DeleteWorkspace(ctx context.Context, id string) error
 	return nil
 }
 
+// sanitizeScriptName removes dangerous characters from script names to prevent path traversal
+func sanitizeScriptName(name string) string {
+	// Only allow alphanumeric, underscore, and hyphen characters
+	return regexp.MustCompile(`[^a-zA-Z0-9_-]`).ReplaceAllString(name, "_")
+}
+
 // executeScripts executes initialization scripts in order
 func (s *WorkspaceService) executeScripts(ctx context.Context, containerID string, scripts []domain.Script) error {
 	if len(scripts) == 0 {
@@ -216,8 +222,14 @@ func (s *WorkspaceService) executeScripts(ctx context.Context, containerID strin
 	for i, script := range sortedScripts {
 		utils.Info("Executing script", "containerID", containerID[:12], "scriptName", script.Name, "order", script.Order, "progress", fmt.Sprintf("%d/%d", i+1, len(sortedScripts)))
 
+		// Sanitize script name to prevent path traversal
+		safeScriptName := sanitizeScriptName(script.Name)
+		if safeScriptName != script.Name {
+			utils.Warn("Script name sanitized", "original", script.Name, "sanitized", safeScriptName)
+		}
+
 		// Create script file path
-		scriptPath := fmt.Sprintf("/tmp/vibox-script-%d-%s.sh", script.Order, script.Name)
+		scriptPath := fmt.Sprintf("/tmp/vibox-script-%d-%s.sh", script.Order, safeScriptName)
 
 		// Copy script to container
 		err := s.dockerSvc.CopyToContainer(ctx, containerID, scriptPath, []byte(script.Content))

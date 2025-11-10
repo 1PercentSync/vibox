@@ -259,6 +259,7 @@ func (s *DockerService) ExecCommand(ctx context.Context, containerID string, cmd
 	execConfig := container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
+		Tty:          true, // Enable TTY for interactive programs (vim, top, etc.)
 		Cmd:          cmd,
 	}
 
