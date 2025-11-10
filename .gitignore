@@ -30,6 +30,7 @@ Thumbs.db
 
 # Application binary
 /vibox
+/server
 /cmd/server/server
 
 # Environment files
