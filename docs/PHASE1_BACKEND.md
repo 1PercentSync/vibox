@@ -252,7 +252,7 @@ DELETE /api/workspaces/:id          // 删除工作空间
 GET    /ws/terminal/:id             // 连接到终端（需要 token）
 
 // 端口转发
-ANY    /forward/:id/:port/*path     // 转发到容器端口
+ANY    /forward/:id/:port/*path     // 转发到容器端口（需要 token）
 ```
 
 #### 4. 鉴权机制

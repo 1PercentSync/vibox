@@ -596,6 +596,16 @@ curl -X POST "http://localhost:3000/forward/ws-a1b2c3d4/3000/api/data?token=your
 
 ### 错误响应
 
+**鉴权失败**：
+```http
+HTTP/1.1 401 Unauthorized
+
+{
+  "error": "Unauthorized: invalid or missing token",
+  "code": "UNAUTHORIZED"
+}
+```
+
 **工作空间不存在**：
 ```http
 HTTP/1.1 404 Not Found

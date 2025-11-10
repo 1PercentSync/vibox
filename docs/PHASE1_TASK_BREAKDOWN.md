@@ -564,7 +564,10 @@ func (s *ProxyService) createReverseProxy(containerIP string, port int) *httputi
 - [ ] 实现 Router 配置
   - [ ] 应用全局中间件
   - [ ] 配置路由分组
-  - [ ] 应用 Auth 中间件
+  - [ ] **应用 Auth 中间件到所有需要鉴权的路由**
+    - [ ] `/api/*` - 所有 API 路由
+    - [ ] `/ws/terminal/:id` - WebSocket 终端
+    - [ ] `/forward/:id/:port/*path` - 端口转发
 - [ ] 实现 Workspace Handler
   - [ ] `POST /api/workspaces` - 创建工作空间
   - [ ] `GET /api/workspaces` - 列出工作空间
@@ -627,7 +630,8 @@ func (h *ProxyHandler) Forward(c *gin.Context)
 - [ ] 所有 API 正常工作
 - [ ] 请求验证正确
 - [ ] 错误响应格式统一
-- [ ] Auth 中间件正确应用
+- [ ] **Auth 中间件正确应用到所有路由（/api/*, /ws/terminal/:id, /forward/:id/:port/*path）**
+- [ ] **未授权请求返回 401 错误**
 - [ ] WebSocket 升级成功
 - [ ] 代理转发正常
 - [ ] 通过 API 集成测试
