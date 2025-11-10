@@ -92,6 +92,8 @@ your-domain.com {
 
 - [项目路线图](./PROJECT_ROADMAP.md) - 三个阶段的详细规划
 - [第一阶段：后端实现](./docs/PHASE1_BACKEND.md) - 当前阶段的详细技术文档
+- [任务拆分方案](./docs/PHASE1_TASK_BREAKDOWN.md) - 模块化开发和并行任务分配
+- [API 规范](./docs/API_SPECIFICATION.md) - RESTful API 和 WebSocket 接口定义
 
 ## 架构
 
