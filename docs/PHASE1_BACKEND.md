@@ -404,11 +404,8 @@ func Load() *Config {
   - [ ] **脚本失败时停止执行后续脚本**
   - [ ] **保留容器以便用户通过 WebSSH 调试**
   - [ ] 将错误信息保存到 Workspace.Error 字段
-- [ ] 实现状态管理
-  - [ ] `creating` → 容器创建中
-  - [ ] `initializing` → 脚本执行中
-  - [ ] `running` → 所有脚本成功执行
-  - [ ] `error` → 脚本执行失败（容器保留，可通过 WebSSH 调试）
+- [ ] 实现状态管理（creating → running/error）
+  - [ ] 脚本执行失败时状态更新为 `error`，容器保留供用户调试
 - [ ] 实现容器健康检查
 
 **测试**：
