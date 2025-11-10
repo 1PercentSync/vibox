@@ -27,10 +27,17 @@ ViBox 是一个通过 Web 界面管理 Docker 容器工作空间的系统，让�
 ### 部署
 
 ```bash
-# 使用 Docker Compose
+# 1. 设置 API Token（必须）
+export API_TOKEN=$(openssl rand -hex 32)
+
+# 2. 配置 docker-compose.yml，添加环境变量：
+# environment:
+#   - API_TOKEN=your-secret-token
+
+# 3. 启动服务
 docker-compose up -d
 
-# 访问
+# 4. 访问（需要 token）
 # http://localhost:3000
 ```
 
@@ -47,6 +54,7 @@ your-domain.com {
 
 ### 第一阶段（当前开发）
 
+- ✅ **Token 鉴权**（环境变量配置）
 - ✅ Docker 容器管理（创建、启动、停止、删除）
 - ✅ 自定义脚本执行
 - ✅ WebSSH 终端访问
@@ -109,11 +117,15 @@ Caddy (domain.com)
 
 ## API 示例
 
+> **注意**：所有 API 都需要 Token 鉴权
+
 ### 创建工作空间
 
 ```bash
+# 使用 Authorization Header（推荐）
 curl -X POST http://localhost:3000/api/workspaces \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-secret-token" \
   -d '{
     "name": "my-workspace",
     "image": "ubuntu:22.04",
@@ -125,12 +137,18 @@ curl -X POST http://localhost:3000/api/workspaces \
       }
     ]
   }'
+
+# 或使用查询参数
+curl -X POST "http://localhost:3000/api/workspaces?token=your-secret-token" \
+  -H "Content-Type: application/json" \
+  -d '{ ... }'
 ```
 
 ### 访问终端
 
 ```javascript
-const ws = new WebSocket('ws://localhost:3000/ws/terminal/{workspace-id}');
+// WebSocket 连接需要在 URL 中携带 token
+const ws = new WebSocket('ws://localhost:3000/ws/terminal/{workspace-id}?token=your-secret-token');
 ws.onmessage = (event) => console.log(event.data);
 ws.send(JSON.stringify({type: 'input', data: 'ls -la\n'}));
 ```
@@ -139,8 +157,8 @@ ws.send(JSON.stringify({type: 'input', data: 'ls -la\n'}));
 
 ```bash
 # 容器内运行的服务在 8080 端口
-# 通过以下 URL 访问：
-http://localhost:3000/forward/{workspace-id}/8080/
+# 通过以下 URL 访问（需要 token）：
+http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token
 ```
 
 ## 开发
@@ -160,6 +178,9 @@ cd vibox
 
 # 安装依赖
 go mod download
+
+# 设置 API Token（必须）
+export API_TOKEN=dev-token-123
 
 # 运行
 go run ./cmd/server

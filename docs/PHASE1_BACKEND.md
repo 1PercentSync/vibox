@@ -153,6 +153,7 @@ vibox/
 │   │   │   ├── terminal.go      # WebSocket 终端
 │   │   │   └── proxy.go         # 端口转发
 │   │   ├── middleware/          # 中间件
+│   │   │   ├── auth.go          # Token 鉴权
 │   │   │   ├── cors.go
 │   │   │   ├── logger.go
 │   │   │   └── recovery.go
@@ -233,6 +234,10 @@ func (s *ProxyService) ProxyRequest(w, r, containerID, port) error
 #### 3. API（路由）
 
 ```go
+// 所有 API 都需要 Token 鉴权
+// 通过 Header: Authorization: Bearer <token>
+// 或查询参数: ?token=<token>
+
 // 工作空间管理
 POST   /api/workspaces              // 创建工作空间
 GET    /api/workspaces              // 列出工作空间
@@ -240,10 +245,75 @@ GET    /api/workspaces/:id          // 获取工作空间
 DELETE /api/workspaces/:id          // 删除工作空间
 
 // WebSocket 终端
-GET    /ws/terminal/:id             // 连接到终端
+GET    /ws/terminal/:id             // 连接到终端（需要 token）
 
 // 端口转发
 ANY    /forward/:id/:port/*path     // 转发到容器端口
+```
+
+#### 4. 鉴权机制
+
+**简单 Token 鉴权**：
+
+- 通过环境变量 `API_TOKEN` 设置访问令牌
+- 所有 API 请求都必须携带 token
+- 支持两种方式传递 token：
+  1. **HTTP Header**（推荐）：`Authorization: Bearer <token>`
+  2. **查询参数**：`?token=<token>`（用于 WebSocket 连接）
+
+**中间件实现**：
+```go
+// internal/api/middleware/auth.go
+func AuthMiddleware(requiredToken string) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 1. 从 Header 获取
+        authHeader := c.GetHeader("Authorization")
+        if strings.HasPrefix(authHeader, "Bearer ") {
+            token := strings.TrimPrefix(authHeader, "Bearer ")
+            if token == requiredToken {
+                c.Next()
+                return
+            }
+        }
+
+        // 2. 从查询参数获取（用于 WebSocket）
+        token := c.Query("token")
+        if token == requiredToken {
+            c.Next()
+            return
+        }
+
+        // 鉴权失败
+        c.JSON(http.StatusUnauthorized, gin.H{
+            "error": "Unauthorized: invalid or missing token",
+        })
+        c.Abort()
+    }
+}
+```
+
+**配置示例**：
+```go
+// internal/config/config.go
+type Config struct {
+    Port         string
+    APIToken     string  // 新增：API 访问令牌
+    DockerHost   string
+    DefaultImage string
+    MemoryLimit  int64
+    CPULimit     int64
+}
+
+func Load() *Config {
+    return &Config{
+        Port:         getEnv("PORT", "3000"),
+        APIToken:     getEnv("API_TOKEN", ""),  // 必须设置
+        DockerHost:   getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
+        DefaultImage: getEnv("DEFAULT_IMAGE", "ubuntu:22.04"),
+        MemoryLimit:  512 * 1024 * 1024,
+        CPULimit:     1000000000,
+    }
+}
 ```
 
 ---
@@ -286,18 +356,27 @@ ANY    /forward/:id/:port/*path     // 转发到容器端口
 
 **任务清单**：
 - [ ] 实现配置管理（`internal/config/config.go`）
+  - [ ] 添加 `API_TOKEN` 环境变量支持
+  - [ ] 启动时验证 token 已设置
 - [ ] 实现工具函数（ID 生成、日志）
 - [ ] 实现领域模型（`internal/domain/workspace.go`）
 - [ ] 实现 DockerService 基础功能
 - [ ] 实现 Repository 接口（内存存储）
-- [ ] 实现中间件（Logger、Recovery、CORS）
-- [ ] 实现基础路由
+- [ ] 实现中间件
+  - [ ] **Auth 中间件**（Token 鉴权）
+  - [ ] Logger 中间件
+  - [ ] Recovery 中间件
+  - [ ] CORS 中间件
+- [ ] 实现基础路由（应用 Auth 中间件）
 - [ ] 实现 `main.go` 入口
 
 **验收标准**：
 - 服务可以启动在 `:3000`
+- 未设置 `API_TOKEN` 时拒绝启动或给出警告
 - 可以通过 Docker SDK 创建/删除容器
 - 基础中间件工作正常
+- **无 token 请求返回 401 Unauthorized**
+- **有效 token 请求正常通过**
 
 ### Phase 2: 工作空间管理（3-4 天）
 
@@ -311,16 +390,24 @@ ANY    /forward/:id/:port/*path     // 转发到容器端口
 
 **测试**：
 ```bash
-# 创建工作空间
+# 设置 token 变量
+export TOKEN="your-secret-token"
+
+# 创建工作空间（使用 Header）
 curl -X POST http://localhost:3000/api/workspaces \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
   -d '{"name": "test", "scripts": [...]}'
 
-# 列出工作空间
-curl http://localhost:3000/api/workspaces
+# 列出工作空间（使用查询参数）
+curl "http://localhost:3000/api/workspaces?token=$TOKEN"
 
 # 删除工作空间
-curl -X DELETE http://localhost:3000/api/workspaces/{id}
+curl -X DELETE "http://localhost:3000/api/workspaces/{id}?token=$TOKEN"
+
+# 测试鉴权失败（无 token）
+curl http://localhost:3000/api/workspaces
+# 应该返回 401 Unauthorized
 ```
 
 **验收标准**：
@@ -352,8 +439,8 @@ curl -X DELETE http://localhost:3000/api/workspaces/{id}
 
 **测试工具**：
 ```bash
-# 使用 websocat 测试
-websocat ws://localhost:3000/ws/terminal/{workspace-id}
+# 使用 websocat 测试（需要 token）
+websocat "ws://localhost:3000/ws/terminal/{workspace-id}?token=your-secret-token"
 ```
 
 **验收标准**：
@@ -376,8 +463,8 @@ websocat ws://localhost:3000/ws/terminal/{workspace-id}
 # 在容器内启动 HTTP 服务
 docker exec {container} python3 -m http.server 8080
 
-# 通过前端访问
-curl http://localhost:3000/forward/{workspace-id}/8080/
+# 通过前端访问（需要 token）
+curl "http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token"
 ```
 
 **验收标准**：
@@ -433,6 +520,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      - API_TOKEN=your-secret-token-change-me  # 必须设置！
       - DEFAULT_IMAGE=ubuntu:22.04
 ```
 
@@ -448,10 +536,12 @@ services:
 ### 开发环境
 
 ```bash
-# 直接运行
+# 直接运行（需要设置环境变量）
+export API_TOKEN=dev-token-123
 go run ./cmd/server
 
 # 或使用 docker-compose
+# 先在 docker-compose.yml 中设置 API_TOKEN
 docker-compose up
 ```
 
@@ -461,13 +551,20 @@ docker-compose up
 # 构建镜像
 docker build -t vibox:latest .
 
-# 运行容器
+# 运行容器（必须设置 API_TOKEN）
 docker run -d \
   -p 3000:3000 \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -e API_TOKEN=your-production-token \
   --name vibox \
   vibox:latest
 ```
+
+**重要**：
+- `API_TOKEN` 必须设置，否则服务应拒绝启动
+- 生产环境使用强随机 token（如 `openssl rand -hex 32`）
+- 不要在代码中硬编码 token
+- 建议定期轮换 token
 
 ### 用户访问
 
@@ -522,6 +619,23 @@ Resources: container.Resources{
 }
 ```
 
+### 5. 鉴权安全
+
+**Token 管理**：
+- Token 通过环境变量 `API_TOKEN` 设置
+- 建议使用强随机字符串（至少 32 字节）
+- 生产环境示例：
+  ```bash
+  # 生成随机 token
+  export API_TOKEN=$(openssl rand -hex 32)
+  ```
+
+**安全建议**：
+- ⚠️ 不要将 token 提交到 Git
+- ⚠️ 使用 HTTPS 部署（通过 Caddy）
+- ⚠️ 定期轮换 token
+- ⚠️ 使用环境变量或密钥管理系统存储 token
+
 ---
 
 ## 参考资源
@@ -549,6 +663,7 @@ Resources: container.Resources{
 
 第一阶段完成后，应该能够：
 
+- ✅ 使用 Token 鉴权访问所有 API
 - ✅ 通过 API 创建工作空间
 - ✅ 容器自动启动并执行初始化脚本
 - ✅ 通过 WebSocket 访问容器终端
