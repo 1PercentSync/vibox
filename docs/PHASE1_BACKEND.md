@@ -372,7 +372,9 @@ func Load() *Config {
   - [ ] Logger 中间件
   - [ ] Recovery 中间件
   - [ ] CORS 中间件
-- [ ] 实现基础路由（应用 Auth 中间件）
+- [ ] 实现基础路由
+  - [ ] 健康检查端点 `/health`（无需鉴权）
+  - [ ] API 路由组 `/api/*`（应用 Auth 中间件）
 - [ ] 实现 `main.go` 入口
 
 **验收标准**：
@@ -385,30 +387,46 @@ func Load() *Config {
 
 ### Phase 2: 工作空间管理（3-4 天）
 
+> **注意**：根据 [任务拆分方案](./PHASE1_TASK_BREAKDOWN.md)，本阶段实际分为两个独立模块：
+> - **Module 3a** (1 天): 数据层 - Domain 模型 + Repository
+> - **Module 3b** (2-3 天): 工作空间服务 - WorkspaceService + CRUD API
+>
+> 这两个模块可以与 Module 2 (Docker 服务) 并行开发。
+
 **任务清单**：
 - [ ] 实现 WorkspaceService 完整逻辑
 - [ ] 实现工作空间 CRUD API
 - [ ] 实现脚本复制到容器
 - [ ] 实现脚本按顺序执行
-- [ ] 实现状态管理（creating → running/error）
+  - [ ] 在容器内创建日志目录 `/var/log/vibox/`
+  - [ ] 每个脚本的输出重定向到单独的日志文件
+  - [ ] 记录脚本退出码
+  - [ ] **脚本失败时停止执行后续脚本**
+  - [ ] **保留容器以便用户通过 WebSSH 调试**
+  - [ ] 将错误信息保存到 Workspace.Error 字段
+- [ ] 实现状态管理
+  - [ ] `creating` → 容器创建中
+  - [ ] `initializing` → 脚本执行中
+  - [ ] `running` → 所有脚本成功执行
+  - [ ] `error` → 脚本执行失败（容器保留，可通过 WebSSH 调试）
 - [ ] 实现容器健康检查
 
 **测试**：
 ```bash
-# 设置 token 变量
-export TOKEN="your-secret-token"
+# 设置 API Token（与配置环境变量一致）
+export API_TOKEN="your-secret-token"
 
 # 创建工作空间（使用 Header）
 curl -X POST http://localhost:3000/api/workspaces \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $API_TOKEN" \
   -d '{"name": "test", "scripts": [...]}'
 
 # 列出工作空间（使用查询参数）
-curl "http://localhost:3000/api/workspaces?token=$TOKEN"
+curl "http://localhost:3000/api/workspaces?token=$API_TOKEN"
 
 # 删除工作空间
-curl -X DELETE "http://localhost:3000/api/workspaces/{id}?token=$TOKEN"
+curl -X DELETE "http://localhost:3000/api/workspaces/{id}?token=$API_TOKEN"
 
 # 测试鉴权失败（无 token）
 curl http://localhost:3000/api/workspaces
@@ -425,6 +443,9 @@ curl http://localhost:3000/api/workspaces
 **任务清单**：
 - [ ] 实现 TerminalService
 - [ ] 实现 WebSocket 升级
+  - [ ] **升级前验证工作空间存在**
+  - [ ] **升级前检查容器运行状态**
+  - [ ] 容器未运行时返回 400 错误（在升级前返回，避免不必要的 WebSocket 升级）
 - [ ] 实现 Docker Exec 创建和 Attach
 - [ ] 实现双向数据传输（goroutine）
 - [ ] 实现终端 resize 支持
@@ -462,6 +483,10 @@ websocat "ws://localhost:3000/ws/terminal/{workspace-id}?token=your-secret-token
 - [ ] 使用 `httputil.ReverseProxy`
 - [ ] 实现路径重写
 - [ ] 实现错误处理
+  - [ ] 工作空间不存在 → 404 NOT_FOUND
+  - [ ] 容器未运行 → 400 CONTAINER_NOT_RUNNING
+  - [ ] 端口未监听/连接失败 → 502 PROXY_ERROR
+  - [ ] 连接超时 → 504 GATEWAY_TIMEOUT
 
 **测试**：
 ```bash
