@@ -378,11 +378,118 @@ services:
 
 ---
 
+---
+
+## 最终技术选型 (2025-11-10)
+
+### 后端：Go 语言 ✅
+
+**确定使用 Go 开发后端**，原因：
+- 开发者对 Go 感兴趣，有学习动力
+- 所有需要的库都很成熟（Docker SDK、PTY、WebSocket、反向代理）
+- 部署简单（单个二进制文件）
+- 性能优秀，天然支持高并发
+- 标准库强大，反向代理直接用 `net/http/httputil`
+
+**技术栈**：
+```
+语言: Go 1.21+
+Web框架: Gin (简单易用)
+依赖:
+  - github.com/docker/docker/client  (Docker 容器管理，官方SDK)
+  - github.com/creack/pty            (伪终端 PTY 支持)
+  - github.com/gorilla/websocket     (WebSocket 支持)
+  - github.com/gin-gonic/gin         (Web 框架)
+  - net/http/httputil                (反向代理，标准库)
+
+部署: Docker + Docker Compose
+唯一对外端口: 3000 (适配用户 Caddy 反向代理)
+```
+
+### 前端：待定 ⏳
+
+前端技术栈暂时不确定，以下是待选方案：
+
+**方案 1: React + TypeScript**
+```
+框架: React 18
+语言: TypeScript
+构建工具: Vite
+终端: xterm.js
+UI库: Ant Design / Tailwind CSS (待定)
+```
+
+**方案 2: Vue + TypeScript**
+```
+框架: Vue 3
+语言: TypeScript
+构建工具: Vite
+终端: xterm.js
+UI库: Element Plus / Naive UI (待定)
+```
+
+**方案 3: 原生 HTML + JavaScript**
+```
+更简单，但功能可能受限
+```
+
+前端方案将在后端 MVP 完成后再确定。
+
+---
+
+## 部署架构（最终版）
+
+```
+用户浏览器
+    ↓
+用户的 Caddy (domain.com)
+    ↓
+反向代理到 localhost:3000
+    ↓
+┌─────────────────────────────────────────┐
+│  Go 后端服务 (唯一对外端口: 3000)        │
+│                                          │
+│  路由规则：                               │
+│  /           → 前端静态文件 (内嵌)        │
+│  /api/*      → RESTful API               │
+│  /ws/*       → WebSocket (Web 终端)      │
+│  /forward/:workspace/:port/* → 反向代理   │
+│                                          │
+│  ┌────────────────────────────────┐     │
+│  │  httputil.ReverseProxy         │     │
+│  │  (标准库动态反向代理)           │     │
+│  └────────────┬───────────────────┘     │
+│               │                          │
+│  ┌────────────▼───────────────────┐     │
+│  │  Docker SDK                    │     │
+│  │  github.com/docker/docker/     │     │
+│  │  client                        │     │
+│  └────────────┬───────────────────┘     │
+└───────────────┼─────────────────────────┘
+                │ Docker API
+                ↓
+┌─────────────────────────────────────────┐
+│         Docker Engine                    │
+│  ┌─────────────────────────────────┐    │
+│  │  工作空间容器 (动态创建)         │    │
+│  │  - Ubuntu 22.04                 │    │
+│  │  - 开发工具                     │    │
+│  │  - 用户HTTP服务                 │    │
+│  │  - 不暴露端口到宿主机           │    │
+│  └─────────────────────────────────┘    │
+└─────────────────────────────────────────┘
+```
+
+**注意**：
+- 不再使用 Traefik，反向代理功能由 Go 后端直接实现
+- 工作空间容器不暴露任何端口到宿主机
+- 所有访问通过后端的反向代理转发到容器内部 IP
+
+---
+
 ## 下一步
 
-1. **确认技术选型**：Node.js 全栈方案是否合适？
-2. **创建项目结构**：初始化 monorepo 项目
-3. **开发 POC**：先实现最小原型验证核心功能
-4. **迭代开发**：按照实现步骤逐步完善
-
-需要我开始搭建项目框架吗？
+详细设计文档参见：
+- [WebSSH 实现原理](./docs/WEBSSH_PRINCIPLE.md)（待创建）
+- [Go 后端架构设计](./docs/BACKEND_ARCHITECTURE.md)（待创建）
+- [开发计划](./docs/DEVELOPMENT_PLAN.md)（待创建）
