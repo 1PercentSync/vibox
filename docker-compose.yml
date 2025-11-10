@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  vibox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/1percentsync/vibox:latest
+    container_name: vibox
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      # Required: API Token for authentication
+      - API_TOKEN=${API_TOKEN:?API_TOKEN is required}
+
+      # Optional: Server configuration
+      - PORT=${PORT:-3000}
+      - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}
+      - DEFAULT_IMAGE=${DEFAULT_IMAGE:-ubuntu:22.04}
+
+      # Optional: Resource limits (in bytes and nanoseconds)
+      - MEMORY_LIMIT=${MEMORY_LIMIT:-536870912}  # 512MB default
+      - CPU_LIMIT=${CPU_LIMIT:-1000000000}        # 1 CPU default
+
+    # Port mapping
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+
+    # Mount Docker socket to manage containers
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Resource limits (optional, uncomment to enable)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Network mode (default bridge)
+    networks:
+      - vibox-network
+
+networks:
+  vibox-network:
+    driver: bridge
+    name: vibox-network
