@@ -143,6 +143,9 @@ go ExecToWebSocket(hijacked, ws)  // 容器输出 → 用户
 
 ```
 vibox/
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml     # CI/CD 配置
 ├── cmd/
 │   └── server/
 │       └── main.go              # 程序入口
@@ -175,7 +178,9 @@ vibox/
 │       └── logger.go            # 日志工具
 ├── docker-compose.yml
 ├── Dockerfile
+├── .dockerignore
 ├── go.mod
+├── go.sum
 └── README.md
 ```
 
@@ -330,7 +335,7 @@ func Load() *Config {
 | **Phase 3** | WebSSH 终端（核心功能）| 4-5 天 |
 | **Phase 4** | HTTP 端口转发 | 2-3 天 |
 | **Phase 5** | 完善优化 | 2-3 天 |
-| **Phase 6** | 容器化部署 | 1-2 天 |
+| **Phase 6** | 容器化部署与 CI/CD | 1-2 天 |
 
 ### Phase 0: 环境准备（1 天）
 
@@ -488,13 +493,18 @@ curl "http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token
 - 日志完整可追踪
 - 资源使用合理
 
-### Phase 6: 容器化部署（1-2 天）
+### Phase 6: 容器化部署与 CI/CD（1-2 天）
 
 **任务清单**：
 - [ ] 编写 Dockerfile（多阶段构建）
 - [ ] 编写 docker-compose.yml
 - [ ] 环境变量配置
+- [ ] 配置 GitHub Actions CI/CD
+  - [ ] 自动构建 Docker 镜像
+  - [ ] 推送到 GitHub Container Registry (ghcr.io)
+  - [ ] 自动打标签（git tag 触发）
 - [ ] 测试容器部署
+- [ ] 测试 CI/CD 流程
 
 **Dockerfile 示例**：
 ```dockerfile
@@ -524,10 +534,76 @@ services:
       - DEFAULT_IMAGE=ubuntu:22.04
 ```
 
+**GitHub Actions 配置示例**：
+```yaml
+# .github/workflows/docker-build.yml
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
 **验收标准**：
 - 镜像构建成功
 - 容器启动正常
 - 所有功能正常工作
+- **提交代码自动触发 CI 构建**
+- **推送 tag 自动构建并推送镜像**
+- **镜像可从 ghcr.io 拉取**
 
 ---
 
@@ -547,6 +623,26 @@ docker-compose up
 
 ### 生产环境
 
+**方式 1：使用 CI 构建的镜像**（推荐）
+
+```bash
+# 拉取最新镜像
+docker pull ghcr.io/1percentsync/vibox:latest
+
+# 或使用特定版本
+docker pull ghcr.io/1percentsync/vibox:v1.0.0
+
+# 运行容器（必须设置 API_TOKEN）
+docker run -d \
+  -p 3000:3000 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e API_TOKEN=your-production-token \
+  --name vibox \
+  ghcr.io/1percentsync/vibox:latest
+```
+
+**方式 2：本地构建**
+
 ```bash
 # 构建镜像
 docker build -t vibox:latest .
@@ -565,6 +661,31 @@ docker run -d \
 - 生产环境使用强随机 token（如 `openssl rand -hex 32`）
 - 不要在代码中硬编码 token
 - 建议定期轮换 token
+
+### CI/CD 自动构建
+
+**触发条件**：
+
+1. **推送到 main 分支**：
+   - 自动构建并推送镜像
+   - 标签：`main`, `sha-xxxxxxx`
+
+2. **推送 Git Tag**：
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+   - 自动构建并推送镜像
+   - 标签：`v1.0.0`, `v1.0`, `v1`, `latest`
+
+3. **Pull Request**：
+   - 仅构建，不推送镜像
+   - 用于验证构建是否成功
+
+**镜像仓库**：
+- GitHub Container Registry (ghcr.io)
+- 镜像地址：`ghcr.io/1percentsync/vibox`
+- 公开可访问（配置为 public）
 
 ### 用户访问
 
@@ -670,5 +791,7 @@ Resources: container.Resources{
 - ✅ 通过 URL 访问容器内 HTTP 服务
 - ✅ 删除工作空间及容器
 - ✅ 使用 Docker Compose 一键部署
+- ✅ **CI/CD 自动构建并推送 Docker 镜像**
+- ✅ **从 ghcr.io 拉取生产就绪的镜像**
 
 **下一步**：进入[第二阶段](../PROJECT_ROADMAP.md#第二阶段前端界面--mvp-集成--待定)，开发前端界面。
