@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/1PercentSync/vibox/internal/api/middleware"
+	"github.com/1PercentSync/vibox/internal/api"
 	"github.com/1PercentSync/vibox/internal/config"
+	"github.com/1PercentSync/vibox/internal/repository"
+	"github.com/1PercentSync/vibox/internal/service"
 	"github.com/1PercentSync/vibox/pkg/utils"
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -31,36 +32,33 @@ func main() {
 		"default_image", cfg.DefaultImage,
 	)
 
-	// Set Gin mode
-	gin.SetMode(gin.ReleaseMode)
-
-	// Create Gin router
-	router := gin.New()
-
-	// Apply global middleware
-	router.Use(middleware.RecoveryMiddleware())
-	router.Use(middleware.LoggerMiddleware())
-	router.Use(middleware.CORSMiddleware())
-
-	// Health check endpoint (no auth required)
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "ok",
-			"service": "vibox",
-		})
-	})
-
-	// API routes (with auth)
-	api := router.Group("/api")
-	api.Use(middleware.AuthMiddleware(cfg.APIToken))
-	{
-		// Placeholder routes - will be implemented in later modules
-		api.GET("/workspaces", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"message": "Workspace API - Coming soon",
-			})
-		})
+	// Initialize Docker service
+	dockerSvc, err := service.NewDockerService(cfg)
+	if err != nil {
+		utils.Error("Failed to initialize Docker service", "error", err.Error())
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to initialize Docker service: %v\n", err)
+		os.Exit(1)
 	}
+	defer dockerSvc.Close()
+
+	utils.Info("Docker service initialized successfully")
+
+	// Initialize repository
+	repo := repository.NewMemoryRepository()
+	utils.Info("Memory repository initialized")
+
+	// Initialize services
+	workspaceSvc := service.NewWorkspaceService(dockerSvc, repo, cfg)
+	utils.Info("Workspace service initialized")
+
+	terminalSvc := service.NewTerminalService(dockerSvc)
+	utils.Info("Terminal service initialized")
+
+	proxySvc := service.NewProxyService(dockerSvc)
+	utils.Info("Proxy service initialized")
+
+	// Setup router with all services
+	router := api.SetupRouter(cfg, dockerSvc, workspaceSvc, terminalSvc, proxySvc)
 
 	// Start server
 	addr := ":" + cfg.Port
