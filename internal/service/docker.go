@@ -135,27 +135,27 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 		return "", fmt.Errorf("failed to create container: %w", err)
 	}
 
-	utils.Info("Container created successfully", "containerID", resp.ID[:12], "name", cfg.Name)
+	utils.Info("Container created successfully", "containerID", utils.ShortID(resp.ID), "name", cfg.Name)
 	return resp.ID, nil
 }
 
 // StartContainer starts a container
 func (s *DockerService) StartContainer(ctx context.Context, containerID string) error {
-	utils.Info("Starting container", "containerID", containerID[:12])
+	utils.Info("Starting container", "containerID", utils.ShortID(containerID))
 
 	err := s.client.ContainerStart(ctx, containerID, container.StartOptions{})
 	if err != nil {
-		utils.Error("Failed to start container", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to start container", "containerID", utils.ShortID(containerID), "error", err)
 		return fmt.Errorf("failed to start container: %w", err)
 	}
 
-	utils.Info("Container started successfully", "containerID", containerID[:12])
+	utils.Info("Container started successfully", "containerID", utils.ShortID(containerID))
 	return nil
 }
 
 // StopContainer stops a container
 func (s *DockerService) StopContainer(ctx context.Context, containerID string, timeout int) error {
-	utils.Info("Stopping container", "containerID", containerID[:12], "timeout", timeout)
+	utils.Info("Stopping container", "containerID", utils.ShortID(containerID), "timeout", timeout)
 
 	stopOptions := container.StopOptions{}
 	if timeout > 0 {
@@ -165,44 +165,44 @@ func (s *DockerService) StopContainer(ctx context.Context, containerID string, t
 
 	err := s.client.ContainerStop(ctx, containerID, stopOptions)
 	if err != nil {
-		utils.Error("Failed to stop container", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to stop container", "containerID", utils.ShortID(containerID), "error", err)
 		return fmt.Errorf("failed to stop container: %w", err)
 	}
 
-	utils.Info("Container stopped successfully", "containerID", containerID[:12])
+	utils.Info("Container stopped successfully", "containerID", utils.ShortID(containerID))
 	return nil
 }
 
 // RemoveContainer removes a container
 func (s *DockerService) RemoveContainer(ctx context.Context, containerID string) error {
-	utils.Info("Removing container", "containerID", containerID[:12])
+	utils.Info("Removing container", "containerID", utils.ShortID(containerID))
 
 	err := s.client.ContainerRemove(ctx, containerID, container.RemoveOptions{
 		Force: true, // Force remove even if running
 	})
 	if err != nil {
-		utils.Error("Failed to remove container", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to remove container", "containerID", utils.ShortID(containerID), "error", err)
 		return fmt.Errorf("failed to remove container: %w", err)
 	}
 
-	utils.Info("Container removed successfully", "containerID", containerID[:12])
+	utils.Info("Container removed successfully", "containerID", utils.ShortID(containerID))
 	return nil
 }
 
 // GetContainerIP returns the IP address of a container
 func (s *DockerService) GetContainerIP(ctx context.Context, containerID string) (string, error) {
-	utils.Debug("Getting container IP", "containerID", containerID[:12])
+	utils.Debug("Getting container IP", "containerID", utils.ShortID(containerID))
 
 	inspect, err := s.client.ContainerInspect(ctx, containerID)
 	if err != nil {
-		utils.Error("Failed to inspect container", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to inspect container", "containerID", utils.ShortID(containerID), "error", err)
 		return "", fmt.Errorf("failed to inspect container: %w", err)
 	}
 
 	// Get IP from default network
 	if inspect.NetworkSettings != nil && inspect.NetworkSettings.IPAddress != "" {
 		ip := inspect.NetworkSettings.IPAddress
-		utils.Debug("Container IP found", "containerID", containerID[:12], "ip", ip)
+		utils.Debug("Container IP found", "containerID", utils.ShortID(containerID), "ip", ip)
 		return ip, nil
 	}
 
@@ -211,67 +211,67 @@ func (s *DockerService) GetContainerIP(ctx context.Context, containerID string) 
 		for networkName, networkConfig := range inspect.NetworkSettings.Networks {
 			if networkConfig.IPAddress != "" {
 				ip := networkConfig.IPAddress
-				utils.Debug("Container IP found in network", "containerID", containerID[:12], "network", networkName, "ip", ip)
+				utils.Debug("Container IP found in network", "containerID", utils.ShortID(containerID), "network", networkName, "ip", ip)
 				return ip, nil
 			}
 		}
 	}
 
-	utils.Warn("No IP address found for container", "containerID", containerID[:12])
+	utils.Warn("No IP address found for container", "containerID", utils.ShortID(containerID))
 	return "", fmt.Errorf("no IP address found for container")
 }
 
 // GetContainerStatus returns the status of a container
 func (s *DockerService) GetContainerStatus(ctx context.Context, containerID string) (string, error) {
-	utils.Debug("Getting container status", "containerID", containerID[:12])
+	utils.Debug("Getting container status", "containerID", utils.ShortID(containerID))
 
 	inspect, err := s.client.ContainerInspect(ctx, containerID)
 	if err != nil {
-		utils.Error("Failed to inspect container", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to inspect container", "containerID", utils.ShortID(containerID), "error", err)
 		return "", fmt.Errorf("failed to inspect container: %w", err)
 	}
 
 	status := inspect.State.Status
-	utils.Debug("Container status", "containerID", containerID[:12], "status", status)
+	utils.Debug("Container status", "containerID", utils.ShortID(containerID), "status", status)
 	return status, nil
 }
 
 // InspectContainer returns detailed container information
 func (s *DockerService) InspectContainer(ctx context.Context, containerID string) (*types.ContainerJSON, error) {
-	utils.Debug("Inspecting container", "containerID", containerID[:12])
+	utils.Debug("Inspecting container", "containerID", utils.ShortID(containerID))
 
 	inspect, err := s.client.ContainerInspect(ctx, containerID)
 	if err != nil {
-		utils.Error("Failed to inspect container", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to inspect container", "containerID", utils.ShortID(containerID), "error", err)
 		return nil, fmt.Errorf("failed to inspect container: %w", err)
 	}
 
-	utils.Debug("Container inspected successfully", "containerID", containerID[:12])
+	utils.Debug("Container inspected successfully", "containerID", utils.ShortID(containerID))
 	return &inspect, nil
 }
 
 // ExecCommand executes a command in a container and returns the output
 func (s *DockerService) ExecCommand(ctx context.Context, containerID string, cmd []string) (string, error) {
-	utils.Debug("Executing command in container", "containerID", containerID[:12], "cmd", strings.Join(cmd, " "))
+	utils.Debug("Executing command in container", "containerID", utils.ShortID(containerID), "cmd", strings.Join(cmd, " "))
 
 	// Create exec instance
 	execConfig := container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
-		Tty:          true, // Enable TTY for interactive programs (vim, top, etc.)
+		Tty:          false, // No TTY for script execution (keeps stdout/stderr separate)
 		Cmd:          cmd,
 	}
 
 	execID, err := s.client.ContainerExecCreate(ctx, containerID, execConfig)
 	if err != nil {
-		utils.Error("Failed to create exec instance", "containerID", containerID[:12], "error", err)
+		utils.Error("Failed to create exec instance", "containerID", utils.ShortID(containerID), "error", err)
 		return "", fmt.Errorf("failed to create exec instance: %w", err)
 	}
 
 	// Attach to exec instance
 	resp, err := s.client.ContainerExecAttach(ctx, execID.ID, container.ExecStartOptions{})
 	if err != nil {
-		utils.Error("Failed to attach to exec instance", "execID", execID.ID[:12], "error", err)
+		utils.Error("Failed to attach to exec instance", "execID", utils.ShortID(execID.ID), "error", err)
 		return "", fmt.Errorf("failed to attach to exec instance: %w", err)
 	}
 	defer resp.Close()
@@ -280,18 +280,18 @@ func (s *DockerService) ExecCommand(ctx context.Context, containerID string, cmd
 	var output bytes.Buffer
 	_, err = io.Copy(&output, resp.Reader)
 	if err != nil {
-		utils.Error("Failed to read exec output", "execID", execID.ID[:12], "error", err)
+		utils.Error("Failed to read exec output", "execID", utils.ShortID(execID.ID), "error", err)
 		return "", fmt.Errorf("failed to read exec output: %w", err)
 	}
 
 	outputStr := output.String()
-	utils.Debug("Command executed successfully", "containerID", containerID[:12], "outputLength", len(outputStr))
+	utils.Debug("Command executed successfully", "containerID", utils.ShortID(containerID), "outputLength", len(outputStr))
 	return outputStr, nil
 }
 
 // CopyToContainer copies a file to a container
 func (s *DockerService) CopyToContainer(ctx context.Context, containerID string, path string, content []byte) error {
-	utils.Debug("Copying file to container", "containerID", containerID[:12], "path", path, "size", len(content))
+	utils.Debug("Copying file to container", "containerID", utils.ShortID(containerID), "path", path, "size", len(content))
 
 	// Create tar archive
 	var buf bytes.Buffer
@@ -333,11 +333,11 @@ func (s *DockerService) CopyToContainer(ctx context.Context, containerID string,
 	// Copy to container
 	err := s.client.CopyToContainer(ctx, containerID, dir, &buf, container.CopyToContainerOptions{})
 	if err != nil {
-		utils.Error("Failed to copy to container", "containerID", containerID[:12], "path", path, "error", err)
+		utils.Error("Failed to copy to container", "containerID", utils.ShortID(containerID), "path", path, "error", err)
 		return fmt.Errorf("failed to copy to container: %w", err)
 	}
 
-	utils.Debug("File copied successfully", "containerID", containerID[:12], "path", path)
+	utils.Debug("File copied successfully", "containerID", utils.ShortID(containerID), "path", path)
 	return nil
 }
 

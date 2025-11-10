@@ -37,3 +37,12 @@ func GenerateSessionID() string {
 	shortID := strings.ReplaceAll(id.String(), "-", "")[:8]
 	return fmt.Sprintf("session-%s", shortID)
 }
+
+// ShortID returns a shortened version of a Docker ID (first 12 characters)
+// This is safe even if the ID is shorter than 12 characters
+func ShortID(id string) string {
+	if len(id) >= 12 {
+		return id[:12]
+	}
+	return id
+}

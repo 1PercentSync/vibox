@@ -68,7 +68,7 @@ func (s *TerminalService) CreateSession(ctx context.Context, ws *websocket.Conn,
 
 	// Create exec instance with TTY
 	execConfig := container.ExecOptions{
-		Cmd:          []string{"/bin/bash"},
+		Cmd:          []string{"/bin/sh"},
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,

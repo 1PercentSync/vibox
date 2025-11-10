@@ -29,18 +29,19 @@ func NewProxyService(dockerSvc *DockerService) *ProxyService {
 // This is the main entry point for forwarding requests to containers
 func (s *ProxyService) ProxyRequest(w http.ResponseWriter, r *http.Request, containerID string, port int) error {
 	utils.Debug("Proxying request to container",
-		"containerID", containerID[:12],
+		"containerID", utils.ShortID(containerID),
 		"port", port,
 		"method", r.Method,
 		"path", r.URL.Path,
 	)
 
 	// Get container IP address
-	ctx := context.Background()
+	// Use request context to respect client cancellation
+	ctx := r.Context()
 	containerIP, err := s.dockerSvc.GetContainerIP(ctx, containerID)
 	if err != nil {
 		utils.Error("Failed to get container IP",
-			"containerID", containerID[:12],
+			"containerID", utils.ShortID(containerID),
 			"error", err,
 		)
 		http.Error(w, "Container not found or not running", http.StatusBadGateway)
@@ -54,7 +55,7 @@ func (s *ProxyService) ProxyRequest(w http.ResponseWriter, r *http.Request, cont
 	proxy.ServeHTTP(w, r)
 
 	utils.Debug("Request proxied successfully",
-		"containerID", containerID[:12],
+		"containerID", utils.ShortID(containerID),
 		"port", port,
 	)
 

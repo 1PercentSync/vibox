@@ -104,7 +104,7 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req CreateWorksp
 		// Start container
 		err = s.dockerSvc.StartContainer(bgCtx, containerID)
 		if err != nil {
-			utils.Error("Failed to start container", "workspaceID", workspaceID, "containerID", containerID[:12], "error", err)
+			utils.Error("Failed to start container", "workspaceID", workspaceID, "containerID", utils.ShortID(containerID), "error", err)
 			s.updateWorkspaceStatus(workspaceID, domain.StatusError, fmt.Sprintf("Failed to start container: %v", err))
 			return
 		}
@@ -170,10 +170,10 @@ func (s *WorkspaceService) DeleteWorkspace(ctx context.Context, id string) error
 
 	// Delete container if it exists
 	if workspace.ContainerID != "" {
-		utils.Info("Deleting container", "workspaceID", id, "containerID", workspace.ContainerID[:12])
+		utils.Info("Deleting container", "workspaceID", id, "containerID", utils.ShortID(workspace.ContainerID))
 		err = s.dockerSvc.RemoveContainer(ctx, workspace.ContainerID)
 		if err != nil {
-			utils.Warn("Failed to delete container (continuing with workspace deletion)", "containerID", workspace.ContainerID[:12], "error", err)
+			utils.Warn("Failed to delete container (continuing with workspace deletion)", "containerID", utils.ShortID(workspace.ContainerID), "error", err)
 			// Continue with workspace deletion even if container deletion fails
 		}
 	}
@@ -208,19 +208,19 @@ func (s *WorkspaceService) executeScripts(ctx context.Context, containerID strin
 		return sortedScripts[i].Order < sortedScripts[j].Order
 	})
 
-	utils.Info("Starting script execution", "containerID", containerID[:12], "scriptCount", len(sortedScripts))
+	utils.Info("Starting script execution", "containerID", utils.ShortID(containerID), "scriptCount", len(sortedScripts))
 
 	// Create log directory in container
 	logDir := "/var/log/vibox"
 	_, err := s.dockerSvc.ExecCommand(ctx, containerID, []string{"mkdir", "-p", logDir})
 	if err != nil {
-		utils.Warn("Failed to create log directory", "containerID", containerID[:12], "error", err)
+		utils.Warn("Failed to create log directory", "containerID", utils.ShortID(containerID), "error", err)
 		// Continue anyway, scripts might still work
 	}
 
 	// Execute each script in order
 	for i, script := range sortedScripts {
-		utils.Info("Executing script", "containerID", containerID[:12], "scriptName", script.Name, "order", script.Order, "progress", fmt.Sprintf("%d/%d", i+1, len(sortedScripts)))
+		utils.Info("Executing script", "containerID", utils.ShortID(containerID), "scriptName", script.Name, "order", script.Order, "progress", fmt.Sprintf("%d/%d", i+1, len(sortedScripts)))
 
 		// Sanitize script name to prevent path traversal
 		safeScriptName := sanitizeScriptName(script.Name)
@@ -280,7 +280,7 @@ func (s *WorkspaceService) executeScripts(ctx context.Context, containerID strin
 		utils.Info("Script executed successfully", "scriptName", script.Name, "logFile", logFile)
 	}
 
-	utils.Info("All scripts executed successfully", "containerID", containerID[:12])
+	utils.Info("All scripts executed successfully", "containerID", utils.ShortID(containerID))
 	return nil
 }
 
