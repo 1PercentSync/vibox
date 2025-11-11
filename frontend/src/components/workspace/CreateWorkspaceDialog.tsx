@@ -11,13 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import type { Script } from '@/api/types'
 
 interface CreateWorkspaceDialogProps {
@@ -167,18 +160,21 @@ export function CreateWorkspaceDialog({
           {/* Docker Image */}
           <div className="space-y-2">
             <Label htmlFor="image">Docker Image</Label>
-            <Select value={image} onValueChange={setImage}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {commonImages.map((img) => (
-                  <SelectItem key={img} value={img}>
-                    {img}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              id="image"
+              list="common-images"
+              placeholder="ubuntu:22.04"
+              value={image}
+              onChange={(e) => setImage(e.target.value)}
+            />
+            <datalist id="common-images">
+              {commonImages.map((img) => (
+                <option key={img} value={img} />
+              ))}
+            </datalist>
+            <p className="text-xs text-muted-foreground">
+              Enter any Docker image (e.g., ubuntu:rolling, node:20-alpine). Common images appear as suggestions.
+            </p>
           </div>
 
           {/* Initialization Scripts */}

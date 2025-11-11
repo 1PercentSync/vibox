@@ -597,7 +597,8 @@ ViBox 前端包含以下核心页面：
 │  [_____________________________]      │
 │                                       │
 │  Docker Image                         │
-│  [ubuntu:22.04          ▼]            │
+│  [ubuntu:22.04_______________]        │
+│  (Any Docker image name)              │
 │                                       │
 │  ┌─ Initialization Scripts ────────┐ │
 │  │                                  │ │
@@ -637,7 +638,9 @@ ViBox 前端包含以下核心页面：
 1. **Workspace Name**（必填）
    - 验证：非空、唯一
 2. **Docker Image**（可选，默认 ubuntu:22.04）
-   - 常用镜像下拉：ubuntu:22.04, alpine:latest, node:20, python:3.11
+   - **文本输入框**，支持输入任意Docker镜像名称
+   - 提供常用镜像建议（datalist）：ubuntu:22.04, ubuntu:24.04, alpine:latest, node:20, python:3.11, golang:1.22
+   - 用户可以输入任何有效的镜像名称（如 ubuntu:rolling, nginx:alpine, postgres:15）
 3. **Initialization Scripts**（可选）
    - 可添加多个脚本
    - 每个脚本有名称、内容、执行顺序
