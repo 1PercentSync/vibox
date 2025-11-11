@@ -1,10 +1,12 @@
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Settings, Terminal as TerminalIcon, Network } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Terminal } from '@/components/terminal/Terminal'
-import { useEffect, useState } from 'react'
+import { PortsTab } from '@/components/workspace/PortsTab'
+import { ConfigTab } from '@/components/workspace/ConfigTab'
 import { workspaceApi } from '@/api/workspaces'
 import type { Workspace } from '@/api/types'
 
@@ -14,15 +16,16 @@ export function WorkspaceDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Fetch workspace details
+  // Fetch workspace details and auto-refresh
   useEffect(() => {
     const fetchWorkspace = async () => {
       if (!id) return
 
       try {
-        setLoading(true)
+        if (loading) setLoading(true) // Only show loading on first fetch
         const { data } = await workspaceApi.get(id)
         setWorkspace(data)
+        setError('')
       } catch (err: any) {
         setError(err.response?.data?.error || 'Failed to load workspace')
       } finally {
@@ -45,7 +48,7 @@ export function WorkspaceDetailPage() {
     )
   }
 
-  if (error) {
+  if (error && !workspace) {
     return (
       <div className="container mx-auto py-6">
         <div className="text-center text-red-500">{error}</div>
@@ -141,127 +144,28 @@ export function WorkspaceDetailPage() {
           )}
         </TabsContent>
 
-        {/* Ports Tab */}
-        <TabsContent value="ports" className="min-h-[400px]">
-          <div className="border rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Port Management</h2>
-            <p className="text-muted-foreground mb-4">
-              Manage port forwarding and labels for this workspace.
-            </p>
-
-            {workspace.ports && Object.keys(workspace.ports).length > 0 ? (
-              <div className="space-y-2">
-                <h3 className="font-medium">Configured Ports:</h3>
-                {Object.entries(workspace.ports).map(([port, label]) => (
-                  <div
-                    key={port}
-                    className="flex items-center justify-between p-3 border rounded"
-                  >
-                    <div>
-                      <span className="font-medium">{label}</span>
-                      <span className="text-muted-foreground ml-2">:{port}</span>
-                    </div>
-                    {workspace.status === 'running' && (
-                      <Button
-                        size="sm"
-                        onClick={() =>
-                          window.open(`/forward/${workspace.id}/${port}/`, '_blank')
-                        }
-                      >
-                        Open
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground italic">
-                No port labels configured. You can still access any port dynamically.
-              </p>
-            )}
-
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> All ports are accessible dynamically at{' '}
-                <code className="bg-white px-1 py-0.5 rounded">
-                  /forward/{'{workspace-id}'}/{'{port}'}
-                </code>
-              </p>
-            </div>
-          </div>
+        {/* Ports Tab - Using Module 5's PortsTab component */}
+        <TabsContent value="ports" className="mt-6">
+          <PortsTab workspace={workspace} onUpdate={async () => {
+            try {
+              const { data } = await workspaceApi.get(workspace.id)
+              setWorkspace(data)
+            } catch (err) {
+              console.error('Failed to refresh workspace:', err)
+            }
+          }} />
         </TabsContent>
 
-        {/* Config Tab */}
-        <TabsContent value="config" className="min-h-[400px]">
-          <div className="border rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">Configuration</h2>
-
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  Workspace ID
-                </h3>
-                <p className="text-sm mt-1">{workspace.id}</p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
-                <p className="text-sm mt-1">{workspace.name}</p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                <div className="mt-1">
-                  <Badge variant={config.color as any}>{config.label}</Badge>
-                </div>
-              </div>
-
-              {workspace.container_id && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Container ID
-                  </h3>
-                  <p className="text-sm mt-1 font-mono">{workspace.container_id}</p>
-                </div>
-              )}
-
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Image</h3>
-                <p className="text-sm mt-1">{workspace.config.image}</p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  Created At
-                </h3>
-                <p className="text-sm mt-1">
-                  {new Date(workspace.created_at).toLocaleString()}
-                </p>
-              </div>
-
-              {workspace.config.scripts && workspace.config.scripts.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    Initialization Scripts
-                  </h3>
-                  <div className="space-y-3">
-                    {workspace.config.scripts
-                      .sort((a, b) => a.order - b.order)
-                      .map((script, index) => (
-                        <div key={index} className="border rounded p-3">
-                          <div className="font-medium text-sm mb-2">
-                            {script.order}. {script.name}
-                          </div>
-                          <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
-                            {script.content}
-                          </pre>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Config Tab - Using Module 5's ConfigTab component */}
+        <TabsContent value="config" className="mt-6">
+          <ConfigTab workspace={workspace} onUpdate={async () => {
+            try {
+              const { data } = await workspaceApi.get(workspace.id)
+              setWorkspace(data)
+            } catch (err) {
+              console.error('Failed to refresh workspace:', err)
+            }
+          }} />
         </TabsContent>
       </Tabs>
     </div>
