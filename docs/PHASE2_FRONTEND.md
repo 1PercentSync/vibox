@@ -676,16 +676,10 @@ ViBox 前端包含以下核心页面：
 **功能**：
 - 显示已保存的端口标签（从后端 `ports` 字段读取）
 - 点击 [Open] 在新窗口打开端口代理 URL
-- 点击 [Edit] 修改服务名称（调用 `PUT /api/workspaces/:id/ports`）
+- 点击 [Edit] 修改服务名称
 - [+ Add] 添加新的端口标签
 - "Access Any Port" 区域允许手动输入任意端口号访问
 - 自动生成代理 URL：`/forward/{workspace-id}/{port}/`
-
-**端口标签设计说明**：
-- 端口标签是**快捷访问**功能，不影响实际端口访问能力
-- 所有端口都可以通过动态 URL 访问（无需预先声明）
-- 端口标签会**持久化保存**，重启后自动恢复
-- 更新端口标签是**即时生效**的，无需重启容器
 
 #### 4.3 配置标签页（Config Tab）
 
@@ -726,42 +720,6 @@ ViBox 前端包含以下核心页面：
   - 删除旧容器
   - 使用原始配置创建新容器
   - 重新执行初始化脚本
-  - 保留工作空间 ID、配置和端口标签
-
-**重置工作空间确认对话框**：
-```
-┌──────────────────────────────────────────┐
-│  Reset Workspace                    [X]  │
-├──────────────────────────────────────────┤
-│                                          │
-│  ⚠️ Warning                              │
-│                                          │
-│  This will:                              │
-│  • Delete the current container         │
-│  • Create a new container               │
-│  • Re-execute all initialization scripts│
-│  • All data in the container will be    │
-│    permanently lost                      │
-│                                          │
-│  The following will be preserved:       │
-│  • Workspace ID and name                │
-│  • Configuration and scripts            │
-│  • Port labels                          │
-│                                          │
-│  Type workspace name to confirm:        │
-│  [_____________________________]         │
-│                                          │
-│     [Cancel]    [Reset Workspace]       │
-└──────────────────────────────────────────┘
-```
-
-**交互流程**：
-1. 点击 [Reset] 按钮 → 打开确认对话框
-2. 用户输入工作空间名称确认 → 激活 [Reset Workspace] 按钮
-3. 点击 [Reset Workspace] → 调用 `POST /api/workspaces/:id/reset`
-4. 显示加载状态（"正在重置..."）
-5. 成功 → 关闭对话框，显示 Toast，工作空间状态变为 `creating`
-6. 轮询状态，等待变为 `running`
 
 ---
 
@@ -964,27 +922,16 @@ font-family:
 
 **任务清单**：
 - [ ] 实现端口转发标签页
-- [ ] 实现端口列表展示（显示已保存的端口标签）
-- [ ] 实现添加/编辑端口标签对话框
-- [ ] 实现更新端口标签功能（调用 `PUT /api/workspaces/:id/ports`）
-- [ ] 实现端口 URL 生成和复制功能
-- [ ] 实现"访问任意端口"输入框
+- [ ] 实现端口列表展示
+- [ ] 实现 URL 复制功能
 - [ ] 实现配置标签页
 - [ ] 显示工作空间详细信息
-- [ ] 显示脚本内容（代码高亮）
-- [ ] 实现重置工作空间确认对话框
-- [ ] 实现重置工作空间功能（调用 `POST /api/workspaces/:id/reset`）
+- [ ] 显示脚本内容
 
 **验收标准**：
-- 可以查看已保存的端口标签列表
-- 可以添加新的端口标签
-- 可以编辑现有端口标签
-- 可以一键打开端口代理 URL
-- 可以手动输入任意端口号访问
+- 可以查看端口转发说明
 - 可以复制端口 URL
 - 可以查看工作空间配置
-- 可以重置工作空间（需要确认）
-- 重置后工作空间状态正确更新
 
 ---
 
@@ -1010,52 +957,6 @@ font-family:
 ---
 
 ## 与后端集成
-
-### 后端新功能说明（v1.1.0）
-
-#### 1. 端口标签功能
-
-**后端支持**：
-- 工作空间模型新增 `ports` 字段：`map[string]string`（端口号 → 服务名）
-- API 支持：`PUT /api/workspaces/:id/ports` 更新端口标签
-- 数据持久化：端口标签会保存到磁盘，重启后自动恢复
-
-**前端实现**：
-- 在创建工作空间时可以预设端口标签
-- 在工作空间详情页可以查看和编辑端口标签
-- 端口标签仅用于快捷访问，不影响动态端口访问功能
-
-#### 2. 容器重置功能
-
-**后端支持**：
-- API 支持：`POST /api/workspaces/:id/reset` 重置工作空间
-- 功能：删除旧容器 → 创建新容器 → 重新执行脚本
-- 保留：工作空间 ID、名称、配置、端口标签
-
-**前端实现**：
-- 在配置标签页提供 [Reset] 按钮
-- 点击后显示确认对话框（要求输入工作空间名称确认）
-- 重置后轮询状态，等待从 `creating` 变为 `running`
-
-#### 3. 数据持久化功能
-
-**后端支持**：
-- 工作空间配置自动保存到 `/data/workspaces.json`
-- 后端重启时自动恢复所有工作空间
-- 容器会被重新创建，脚本会重新执行
-
-**前端影响**：
-- **用户体验改进**：重启后工作空间自动恢复，无需手动重建
-- **状态处理**：页面刷新或重新登录后，之前的工作空间仍然存在
-- **加载状态**：后端重启后，工作空间初始状态为 `creating`，需要等待变为 `running`
-- **错误处理**：如果重启恢复失败，工作空间状态会变为 `error`
-
-**前端注意事项**：
-- 首次加载时可能看到工作空间状态为 `creating`（正在恢复中）
-- 建议在列表页显示恢复进度或状态说明
-- 轮询机制应能正确处理 `creating` → `running` 的状态转换
-
----
 
 ### 集成方案：Go 后端嵌入前端静态文件
 
@@ -1256,9 +1157,8 @@ export interface Workspace {
   container_id: string
   status: 'creating' | 'running' | 'stopped' | 'error'
   created_at: string
-  updated_at: string
   config: WorkspaceConfig
-  ports?: Record<string, string>  // 端口标签映射（端口号 → 服务名）
+  ports?: Record<string, string>  // 新增：端口标签映射
   error?: string
 }
 
@@ -1277,16 +1177,11 @@ export interface CreateWorkspaceRequest {
   name: string
   image?: string
   scripts?: Script[]
-  ports?: Record<string, string>  // 创建时预设端口标签
+  ports?: Record<string, string>  // 新增：端口标签映射
 }
 
 export interface UpdatePortsRequest {
-  ports: Record<string, string>  // 更新端口标签
-}
-
-export interface ResetWorkspaceResponse {
-  message: string
-  workspace: Workspace
+  ports: Record<string, string>
 }
 ```
 
