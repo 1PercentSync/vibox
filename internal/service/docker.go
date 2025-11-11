@@ -106,6 +106,10 @@ func (s *DockerService) CreateContainer(ctx context.Context, cfg ContainerConfig
 		AttachStderr: true,
 		// Keep container running - use /bin/sh for maximum compatibility (including Alpine)
 		Cmd: []string{"/bin/sh"},
+		// Add label to identify ViBox workspace containers for cleanup
+		Labels: map[string]string{
+			"vibox.workspace": "true",
+		},
 	}
 
 	// Host configuration with resource limits
