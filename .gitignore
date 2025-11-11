@@ -59,3 +59,6 @@ frontend/node_modules/
 
 # Static files embedded in binary
 internal/static/dist/
+
+# Runtime data
+data/
