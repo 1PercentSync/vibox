@@ -11,7 +11,7 @@ export const useWorkspaces = (options?: { autoRefresh?: boolean; interval?: numb
 
   const { autoRefresh = true, interval = 5000 } = options || {}
 
-  // Fetch workspaces function
+  // Fetch workspaces from API
   const fetchWorkspaces = async () => {
     try {
       setIsLoading(true)
@@ -19,6 +19,7 @@ export const useWorkspaces = (options?: { autoRefresh?: boolean; interval?: numb
       setWorkspaces(data)
     } catch (error) {
       console.error('Failed to fetch workspaces:', error)
+      // Don't clear workspaces on error, keep showing previous data
     } finally {
       setIsLoading(false)
     }
