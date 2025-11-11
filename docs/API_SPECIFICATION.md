@@ -139,8 +139,7 @@ Content-Type: application/json
   "ports": {
     "8080": "VS Code Server",
     "3000": "Web App"
-  },
-  "auto_restore": true
+  }
 }
 ```
 

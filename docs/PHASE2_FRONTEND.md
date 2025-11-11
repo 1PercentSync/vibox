@@ -482,6 +482,10 @@ ViBox 前端包含以下核心页面：
 │  │              │  │              │           │
 │  │ ubuntu:22.04 │  │ alpine       │           │
 │  │              │  │              │           │
+│  │ Quick Access:│  │ Quick Access:│           │
+│  │ [VSCode:8080]│  │ [App:3000]   │           │
+│  │ [App:3000]   │  │              │           │
+│  │              │  │              │           │
 │  │ [Terminal]   │  │ [Terminal]   │           │
 │  │ [Ports]      │  │ [Ports]      │           │
 │  │ [Delete]     │  │ [Delete]     │           │
@@ -508,8 +512,14 @@ ViBox 前端包含以下核心页面：
 
 **工作空间卡片**：
 - **顶部**：工作空间名称 + 状态 Badge
-- **中部**：镜像信息、创建时间
+- **中部**：镜像信息、端口快速访问按钮
 - **底部**：操作按钮（打开终端、查看端口、删除）
+
+**端口快速访问**：
+- 显示前 2-3 个端口标签（如果有配置）
+- 点击按钮在新窗口打开对应的代理 URL
+- 例如：`[VSCode:8080]` 打开 `/forward/{workspace-id}/8080/`
+- 如果没有配置端口标签，不显示此区域
 
 **状态颜色**：
 - `running` - 绿色（成功）
@@ -566,15 +576,25 @@ ViBox 前端包含以下核心页面：
 │  │  [+ Add Script]                 │ │
 │  └──────────────────────────────────┘ │
 │                                       │
+│  ┌─ Port Labels (Optional) ────────┐ │
+│  │                                  │ │
+│  │  Port    Service Name            │ │
+│  │  [8080]  [VS Code Server____]  ✕ │ │
+│  │  [3000]  [Web App___________]  ✕ │ │
+│  │                                  │ │
+│  │  [+ Add Port]                   │ │
+│  └──────────────────────────────────┘ │
+│                                       │
 │        [Cancel]    [Create]           │
 └───────────────────────────────────────┘
 ```
 
 **组件**：
 - shadcn UI `Dialog` - 对话框容器
-- shadcn UI `Input` - 工作空间名称
+- shadcn UI `Input` - 工作空间名称、端口号、服务名称
 - shadcn UI `Select` - 镜像选择
 - shadcn UI `Textarea` - 脚本内容
+- shadcn UI `Button` - 添加/删除端口标签
 - shadcn UI `Button` - 添加脚本、取消、创建
 
 **表单字段**：
@@ -585,6 +605,11 @@ ViBox 前端包含以下核心页面：
 3. **Initialization Scripts**（可选）
    - 可添加多个脚本
    - 每个脚本有名称、内容、执行顺序
+4. **Port Labels**（可选）
+   - 为常用端口设置友好的服务名称
+   - 每个端口标签包含：端口号（1-65535）、服务名称
+   - 用户可添加/删除多个端口标签
+   - 示例：8080 → "VS Code Server", 3000 → "Web App"
 
 **交互**：
 1. 填写表单
@@ -1215,6 +1240,50 @@ export const useWorkspaces = () => {
   }, [])
 
   return { workspaces, refetch: fetchWorkspaces }
+}
+
+// 更新端口标签示例
+export const updateWorkspacePorts = async (
+  workspaceId: string,
+  ports: Record<string, string>
+) => {
+  try {
+    const { data } = await workspaceApi.updatePorts(workspaceId, { ports })
+    console.log('Ports updated successfully:', data)
+    return data
+  } catch (error) {
+    console.error('Failed to update ports:', error)
+    throw error
+  }
+}
+
+// 重置工作空间示例
+export const resetWorkspace = async (workspaceId: string) => {
+  try {
+    const { data } = await workspaceApi.reset(workspaceId)
+    console.log('Workspace reset successfully:', data.message)
+    return data.workspace
+  } catch (error) {
+    console.error('Failed to reset workspace:', error)
+    throw error
+  }
+}
+
+// 使用示例：在组件中
+const handleUpdatePorts = async () => {
+  await updateWorkspacePorts('ws-12345', {
+    '8080': 'VS Code Server',
+    '3000': 'Web App',
+    '5432': 'PostgreSQL'
+  })
+  refetch() // 重新获取工作空间列表
+}
+
+const handleReset = async () => {
+  if (confirm('Are you sure? This will delete the container and recreate it.')) {
+    await resetWorkspace('ws-12345')
+    refetch()
+  }
 }
 ```
 

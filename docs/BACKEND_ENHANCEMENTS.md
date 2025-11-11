@@ -397,7 +397,6 @@ HTTP/1.1 404 Not Found
   "ports": {                    // 新增
     "8080": "VS Code Server"
   },
-  "auto_restore": true,         // 新增
   ...
 }
 ```
@@ -1029,14 +1028,13 @@ docker exec $(docker ps -q -f label=vibox.workspace=$WS_ID) cat /tmp/test.txt
 ### 3. 持久化测试
 
 ```bash
-# 创建工作空间（auto_restore=true）
+# 创建工作空间（配置会自动持久化）
 curl -X POST http://localhost:3000/api/workspaces \
   -H "X-ViBox-Token: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "test-persist",
-    "image": "ubuntu:22.04",
-    "auto_restore": true
+    "image": "ubuntu:22.04"
   }'
 
 # 验证数据文件存在
