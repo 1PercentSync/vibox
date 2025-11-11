@@ -15,9 +15,10 @@ import (
 
 // CreateWorkspaceRequest represents a request to create a new workspace
 type CreateWorkspaceRequest struct {
-	Name    string          `json:"name" binding:"required"`
-	Image   string          `json:"image"`
-	Scripts []domain.Script `json:"scripts,omitempty"`
+	Name    string            `json:"name" binding:"required"`
+	Image   string            `json:"image"`
+	Scripts []domain.Script   `json:"scripts,omitempty"`
+	Ports   map[string]string `json:"ports,omitempty"` // Port label mappings
 }
 
 // WorkspaceService handles workspace management operations
@@ -63,6 +64,7 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req CreateWorksp
 			Image:   image,
 			Scripts: req.Scripts,
 		},
+		Ports: req.Ports, // Set port mappings
 	}
 
 	// Save workspace to repository with "creating" status
@@ -302,4 +304,247 @@ func (s *WorkspaceService) updateWorkspaceStatus(workspaceID string, status doma
 	} else {
 		utils.Info("Workspace status updated", "workspaceID", workspaceID, "status", status)
 	}
+}
+
+// UpdatePorts updates the port mappings for a workspace
+func (s *WorkspaceService) UpdatePorts(ctx context.Context, id string, ports map[string]string) error {
+	utils.Info("Updating ports for workspace", "id", id)
+
+	workspace, err := s.repo.Get(id)
+	if err != nil {
+		utils.Error("Failed to get workspace for port update", "id", id, "error", err)
+		return fmt.Errorf("workspace not found: %w", err)
+	}
+
+	workspace.Ports = ports
+	workspace.UpdatedAt = time.Now()
+
+	err = s.repo.Update(workspace)
+	if err != nil {
+		utils.Error("Failed to update workspace ports", "id", id, "error", err)
+		return fmt.Errorf("failed to update workspace: %w", err)
+	}
+
+	utils.Info("Workspace ports updated successfully", "id", id)
+	return nil
+}
+
+// ResetWorkspace resets a workspace to its initial state
+func (s *WorkspaceService) ResetWorkspace(ctx context.Context, id string) error {
+	utils.Info("Resetting workspace", "id", id)
+
+	workspace, err := s.repo.Get(id)
+	if err != nil {
+		utils.Error("Failed to get workspace for reset", "id", id, "error", err)
+		return fmt.Errorf("workspace not found: %w", err)
+	}
+
+	// 1. Delete old container (if exists)
+	if workspace.ContainerID != "" {
+		utils.Info("Stopping and removing old container", "workspaceID", id, "containerID", utils.ShortID(workspace.ContainerID))
+
+		// Stop container (ignore errors if already stopped)
+		_ = s.dockerSvc.StopContainer(ctx, workspace.ContainerID, 10)
+
+		// Remove container (ignore errors if already removed)
+		_ = s.dockerSvc.RemoveContainer(ctx, workspace.ContainerID)
+	}
+
+	// 2. Reset workspace state
+	workspace.ContainerID = ""
+	workspace.Status = domain.StatusCreating
+	workspace.Error = ""
+	workspace.UpdatedAt = time.Now()
+
+	if err := s.repo.Update(workspace); err != nil {
+		utils.Error("Failed to update workspace state", "workspaceID", id, "error", err)
+		return fmt.Errorf("failed to update workspace: %w", err)
+	}
+
+	// 3. Recreate container in background
+	go func() {
+		bgCtx := context.Background()
+
+		// Create Docker container
+		containerCfg := ContainerConfig{
+			Image: workspace.Config.Image,
+			Name:  fmt.Sprintf("vibox-%s", workspace.ID),
+		}
+
+		containerID, err := s.dockerSvc.CreateContainer(bgCtx, containerCfg)
+		if err != nil {
+			utils.Error("Failed to create container during reset", "workspaceID", id, "error", err)
+			s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Failed to create container: %v", err))
+			return
+		}
+
+		// Update workspace with new container ID
+		workspace.ContainerID = containerID
+		workspace.UpdatedAt = time.Now()
+		if err := s.repo.Update(workspace); err != nil {
+			utils.Error("Failed to update workspace with new container ID", "workspaceID", id, "error", err)
+			_ = s.dockerSvc.RemoveContainer(bgCtx, containerID)
+			s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Failed to update workspace: %v", err))
+			return
+		}
+
+		// Start container
+		err = s.dockerSvc.StartContainer(bgCtx, containerID)
+		if err != nil {
+			utils.Error("Failed to start container during reset", "workspaceID", id, "containerID", utils.ShortID(containerID), "error", err)
+			s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Failed to start container: %v", err))
+			return
+		}
+
+		// Execute initialization scripts if any
+		if len(workspace.Config.Scripts) > 0 {
+			utils.Info("Executing initialization scripts after reset", "workspaceID", id, "scriptCount", len(workspace.Config.Scripts))
+			err = s.executeScripts(bgCtx, containerID, workspace.Config.Scripts)
+			if err != nil {
+				utils.Error("Script execution failed during reset", "workspaceID", id, "error", err)
+				s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Script execution failed: %v", err))
+				return
+			}
+		}
+
+		// Update status to running
+		utils.Info("Workspace reset successfully", "workspaceID", id)
+		s.updateWorkspaceStatus(id, domain.StatusRunning, "")
+	}()
+
+	return nil
+}
+
+// RestoreWorkspaces restores all workspaces on startup
+func (s *WorkspaceService) RestoreWorkspaces(ctx context.Context) error {
+	utils.Info("Restoring workspaces on startup")
+
+	// 1. Cleanup all old workspace containers (prevent abnormal exit leftovers)
+	if err := s.CleanupContainers(ctx); err != nil {
+		utils.Warn("Failed to cleanup old containers", "error", err)
+		// Continue anyway, non-critical
+	}
+
+	// 2. Load all workspace configurations
+	workspaces, err := s.repo.List()
+	if err != nil {
+		utils.Error("Failed to list workspaces for restoration", "error", err)
+		return fmt.Errorf("failed to list workspaces: %w", err)
+	}
+
+	utils.Info("Found workspaces to restore", "count", len(workspaces))
+
+	// 3. Recreate all workspaces
+	for _, ws := range workspaces {
+		utils.Info("Restoring workspace", "id", ws.ID, "name", ws.Name)
+
+		// Clear runtime fields
+		ws.ContainerID = ""
+		ws.Status = domain.StatusCreating
+		ws.Error = ""
+		ws.UpdatedAt = time.Now()
+
+		// Save cleared state
+		if err := s.repo.Update(ws); err != nil {
+			utils.Error("Failed to update workspace during restoration", "workspaceID", ws.ID, "error", err)
+			continue
+		}
+
+		// Recreate container in background
+		go func(workspace *domain.Workspace) {
+			bgCtx := context.Background()
+
+			// Create Docker container
+			containerCfg := ContainerConfig{
+				Image: workspace.Config.Image,
+				Name:  fmt.Sprintf("vibox-%s", workspace.ID),
+			}
+
+			containerID, err := s.dockerSvc.CreateContainer(bgCtx, containerCfg)
+			if err != nil {
+				utils.Error("Failed to create container during restoration", "workspaceID", workspace.ID, "error", err)
+				s.updateWorkspaceStatus(workspace.ID, domain.StatusError, fmt.Sprintf("Failed to create container: %v", err))
+				return
+			}
+
+			// Update workspace with container ID
+			workspace.ContainerID = containerID
+			workspace.UpdatedAt = time.Now()
+			if err := s.repo.Update(workspace); err != nil {
+				utils.Error("Failed to update workspace with container ID during restoration", "workspaceID", workspace.ID, "error", err)
+				_ = s.dockerSvc.RemoveContainer(bgCtx, containerID)
+				s.updateWorkspaceStatus(workspace.ID, domain.StatusError, fmt.Sprintf("Failed to update workspace: %v", err))
+				return
+			}
+
+			// Start container
+			err = s.dockerSvc.StartContainer(bgCtx, containerID)
+			if err != nil {
+				utils.Error("Failed to start container during restoration", "workspaceID", workspace.ID, "containerID", utils.ShortID(containerID), "error", err)
+				s.updateWorkspaceStatus(workspace.ID, domain.StatusError, fmt.Sprintf("Failed to start container: %v", err))
+				return
+			}
+
+			// Execute initialization scripts
+			if len(workspace.Config.Scripts) > 0 {
+				utils.Info("Executing initialization scripts during restoration", "workspaceID", workspace.ID, "scriptCount", len(workspace.Config.Scripts))
+				err = s.executeScripts(bgCtx, containerID, workspace.Config.Scripts)
+				if err != nil {
+					utils.Error("Script execution failed during restoration", "workspaceID", workspace.ID, "error", err)
+					s.updateWorkspaceStatus(workspace.ID, domain.StatusError, fmt.Sprintf("Script execution failed: %v", err))
+					return
+				}
+			}
+
+			// Update status to running
+			utils.Info("Workspace restored successfully", "workspaceID", workspace.ID)
+			s.updateWorkspaceStatus(workspace.ID, domain.StatusRunning, "")
+		}(ws)
+	}
+
+	utils.Info("Workspace restoration initiated", "count", len(workspaces))
+	return nil
+}
+
+// CleanupContainers removes all ViBox workspace containers
+func (s *WorkspaceService) CleanupContainers(ctx context.Context) error {
+	utils.Info("Cleaning up ViBox workspace containers")
+
+	// Find all containers with vibox.workspace label
+	containers, err := s.dockerSvc.ListContainers(ctx, map[string]string{
+		"label": "vibox.workspace",
+	})
+	if err != nil {
+		utils.Error("Failed to list containers for cleanup", "error", err)
+		return fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	utils.Info("Found containers to cleanup", "count", len(containers))
+
+	for _, container := range containers {
+		utils.Info("Cleaning up old container", "containerID", utils.ShortID(container.ID))
+
+		// Stop container (ignore errors)
+		_ = s.dockerSvc.StopContainer(ctx, container.ID, 10)
+
+		// Remove container (ignore errors)
+		_ = s.dockerSvc.RemoveContainer(ctx, container.ID)
+	}
+
+	utils.Info("Container cleanup completed", "count", len(containers))
+	return nil
+}
+
+// Shutdown gracefully shuts down the service and cleans up containers
+func (s *WorkspaceService) Shutdown(ctx context.Context) error {
+	utils.Info("Shutting down workspace service")
+
+	// Delete all workspace containers
+	if err := s.CleanupContainers(ctx); err != nil {
+		utils.Warn("Failed to cleanup containers during shutdown", "error", err)
+		// Continue anyway
+	}
+
+	utils.Info("Workspace service shutdown complete")
+	return nil
 }

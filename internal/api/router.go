@@ -49,6 +49,10 @@ func SetupRouter(
 		api.GET("/workspaces", workspaceHandler.List)
 		api.GET("/workspaces/:id", workspaceHandler.Get)
 		api.DELETE("/workspaces/:id", workspaceHandler.Delete)
+
+		// Workspace operations
+		api.PUT("/workspaces/:id/ports", workspaceHandler.UpdatePorts)
+		api.POST("/workspaces/:id/reset", workspaceHandler.ResetWorkspace)
 	}
 
 	// WebSocket terminal (with auth)
