@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useAtomValue } from 'jotai'
 import { Button } from '@/components/ui/button'
 import { WorkspaceCard } from '@/components/workspace/WorkspaceCard'
+import { WorkspaceCardSkeleton } from '@/components/workspace/WorkspaceCardSkeleton'
 import { CreateWorkspaceDialog } from '@/components/workspace/CreateWorkspaceDialog'
 import { DeleteConfirmDialog } from '@/components/workspace/DeleteConfirmDialog'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { isLoadingAtom } from '@/stores/ui'
 import { workspaceApi } from '@/api/workspaces'
+import { toast } from 'sonner'
 import type { CreateWorkspaceRequest } from '@/api/types'
 
 export function WorkspacesPage() {
@@ -21,8 +23,14 @@ export function WorkspacesPage() {
   const selectedWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId)
 
   const handleCreateWorkspace = async (data: CreateWorkspaceRequest) => {
-    await workspaceApi.create(data)
-    refetch()
+    try {
+      await workspaceApi.create(data)
+      toast.success('Workspace created successfully')
+      refetch()
+    } catch (error) {
+      // Error already handled by axios interceptor
+      console.error('Failed to create workspace:', error)
+    }
   }
 
   const handleDeleteClick = (id: string) => {
@@ -36,10 +44,12 @@ export function WorkspacesPage() {
     try {
       setDeleteLoading(true)
       await workspaceApi.delete(selectedWorkspaceId)
+      toast.success('Workspace deleted successfully')
       refetch()
       setDeleteDialogOpen(false)
       setSelectedWorkspaceId(null)
     } catch (error) {
+      // Error already handled by axios interceptor
       console.error('Failed to delete workspace:', error)
     } finally {
       setDeleteLoading(false)
@@ -53,10 +63,11 @@ export function WorkspacesPage() {
 
     try {
       await workspaceApi.reset(id)
+      toast.success('Workspace reset successfully')
       refetch()
     } catch (error) {
+      // Error already handled by axios interceptor
       console.error('Failed to reset workspace:', error)
-      alert('Failed to reset workspace')
     }
   }
 
@@ -77,8 +88,10 @@ export function WorkspacesPage() {
 
       {/* Loading State */}
       {isLoading && workspaces.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading workspaces...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <WorkspaceCardSkeleton key={index} />
+          ))}
         </div>
       )}
 

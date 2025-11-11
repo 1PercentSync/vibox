@@ -13,6 +13,7 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card'
+import { toast } from 'sonner'
 
 export function LoginPage() {
   const [token, setToken] = useState('')
@@ -36,6 +37,7 @@ export function LoginPage() {
       await authApi.login(token)
       // Save token to state (also saves to localStorage)
       saveToken(token)
+      toast.success('Login successful!')
       // Redirect to home page
       navigate('/')
     } catch (err: any) {

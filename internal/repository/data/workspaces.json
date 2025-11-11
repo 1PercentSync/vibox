@@ -1,0 +1,153 @@
+{
+  "workspaces": {
+    "ws-concurrent-0": {
+      "id": "ws-concurrent-0",
+      "name": "workspace-0",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-1": {
+      "id": "ws-concurrent-1",
+      "name": "workspace-1",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-2": {
+      "id": "ws-concurrent-2",
+      "name": "workspace-2",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-3": {
+      "id": "ws-concurrent-3",
+      "name": "workspace-3",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-4": {
+      "id": "ws-concurrent-4",
+      "name": "workspace-4",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-5": {
+      "id": "ws-concurrent-5",
+      "name": "workspace-5",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-6": {
+      "id": "ws-concurrent-6",
+      "name": "workspace-6",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-7": {
+      "id": "ws-concurrent-7",
+      "name": "workspace-7",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-8": {
+      "id": "ws-concurrent-8",
+      "name": "workspace-8",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-concurrent-9": {
+      "id": "ws-concurrent-9",
+      "name": "workspace-9",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-test-001": {
+      "id": "ws-test-001",
+      "name": "test-workspace",
+      "container_id": "container-123",
+      "status": "creating",
+      "created_at": "2025-11-10T22:57:21.1086969-07:00",
+      "updated_at": "2025-11-10T22:57:21.1086969-07:00",
+      "config": {
+        "image": "ubuntu:22.04"
+      }
+    },
+    "ws-test-002": {
+      "id": "ws-test-002",
+      "name": "test-workspace-2",
+      "container_id": "container-456",
+      "status": "running",
+      "created_at": "2025-11-10T22:57:21.1092143-07:00",
+      "updated_at": "2025-11-10T22:57:21.1092143-07:00",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-test-003": {
+      "id": "ws-test-003",
+      "name": "workspace-1",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-test-004": {
+      "id": "ws-test-004",
+      "name": "workspace-2",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-test-005": {
+      "id": "ws-test-005",
+      "name": "workspace-3",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    },
+    "ws-test-006": {
+      "id": "ws-test-006",
+      "name": "updated-name",
+      "status": "running",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "config": {
+        "image": ""
+      }
+    }
+  }
+}
