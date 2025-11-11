@@ -67,8 +67,31 @@ func (s *TerminalService) CreateSession(ctx context.Context, ws *websocket.Conn,
 	}
 
 	// Create exec instance with TTY
+	// Try bash first (for arrow keys and command history), fallback to sh
+	shell := "/bin/bash"
+
+	// Check if bash exists in container
+	checkExec, err := s.dockerSvc.client.ContainerExecCreate(ctx, containerID, container.ExecOptions{
+		Cmd:          []string{"sh", "-c", "which bash || echo notfound"},
+		AttachStdout: true,
+	})
+	if err == nil {
+		checkResp, err := s.dockerSvc.client.ContainerExecAttach(ctx, checkExec.ID, container.ExecStartOptions{})
+		if err == nil {
+			output := make([]byte, 256)
+			n, _ := checkResp.Reader.Read(output)
+			if n > 0 && string(output[:n]) != "notfound\n" && string(output[:n]) != "notfound" {
+				utils.Debug("Bash found in container", "containerID", containerID)
+			} else {
+				shell = "/bin/sh"
+				utils.Debug("Bash not found, using sh", "containerID", containerID)
+			}
+			checkResp.Close()
+		}
+	}
+
 	execConfig := container.ExecOptions{
-		Cmd:          []string{"/bin/sh"},
+		Cmd:          []string{shell},
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,

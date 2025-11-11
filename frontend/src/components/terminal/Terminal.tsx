@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
+import { useAtom, useAtomValue } from 'jotai'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import '@xterm/xterm/css/xterm.css'
-import { useWebSocket } from '@/hooks/useWebSocket'
 import { TerminalToolbar } from './TerminalToolbar'
+import {
+  terminalInstancesAtom,
+  getTerminalInstance,
+  setTerminalInstance,
+  updateTerminalWebSocket,
+} from '@/stores/terminals'
+import { tokenAtom } from '@/stores/auth'
 
 interface TerminalProps {
   workspaceId: string
@@ -18,20 +25,52 @@ interface TerminalMessage {
   rows?: number
 }
 
+type WebSocketStatus = 'connecting' | 'connected' | 'disconnected'
+
 export function Terminal({ workspaceId }: TerminalProps) {
   const terminalRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [status, setStatus] = useState<WebSocketStatus>('disconnected')
+  const [terminalInstances, setTerminalInstances] = useAtom(terminalInstancesAtom)
+  const token = useAtomValue(tokenAtom)
 
-  const wsUrl = `/ws/terminal/${workspaceId}`
-  const { ws, status, reconnect } = useWebSocket(wsUrl)
-
-  // Initialize terminal
+  // Initialize or restore terminal
   useEffect(() => {
     if (!terminalRef.current) return
 
-    // Create terminal instance
+    // Check if we have an existing terminal instance for this workspace
+    const existingInstance = getTerminalInstance(terminalInstances, workspaceId)
+
+    if (existingInstance) {
+      // Reuse existing terminal
+      console.log('Restoring existing terminal for workspace:', workspaceId)
+      const { terminal, fitAddon, websocket } = existingInstance
+
+      // Re-attach to DOM
+      terminal.open(terminalRef.current)
+      fitAddon.fit()
+
+      termRef.current = terminal
+      fitAddonRef.current = fitAddon
+      wsRef.current = websocket
+
+      // Update status based on WebSocket state
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        setStatus('connected')
+      } else if (websocket && websocket.readyState === WebSocket.CONNECTING) {
+        setStatus('connecting')
+      } else {
+        setStatus('disconnected')
+      }
+
+      return // Don't dispose on unmount
+    }
+
+    // Create new terminal instance
+    console.log('Creating new terminal for workspace:', workspaceId)
     const term = new XTerm({
       cursorBlink: true,
       fontSize: 14,
@@ -85,18 +124,78 @@ export function Terminal({ workspaceId }: TerminalProps) {
     termRef.current = term
     fitAddonRef.current = fitAddon
 
-    // Cleanup
+    // Store terminal instance for reuse
+    setTerminalInstances((prev) =>
+      setTerminalInstance(prev, workspaceId, term, fitAddon)
+    )
+
+    // Don't dispose on unmount - keep terminal alive for navigation
     return () => {
-      term.dispose()
+      // Terminal stays alive in memory
+      console.log('Terminal component unmounting, keeping terminal alive:', workspaceId)
     }
-  }, [])
+  }, [workspaceId, terminalInstances, setTerminalInstances])
 
-  // Handle WebSocket connection
+  // WebSocket connection management
   useEffect(() => {
-    if (!ws || !termRef.current || status !== 'connected') return
+    if (!token || !termRef.current) return
 
+    const existingInstance = getTerminalInstance(terminalInstances, workspaceId)
+
+    // If we already have a connected WebSocket, reuse it
+    if (existingInstance?.websocket && existingInstance.websocket.readyState === WebSocket.OPEN) {
+      console.log('Reusing existing WebSocket connection')
+      wsRef.current = existingInstance.websocket
+      setStatus('connected')
+      return
+    }
+
+    // Create new WebSocket connection
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    const wsUrl = `${protocol}//${host}/ws/terminal/${workspaceId}?token=${token}`
+
+    console.log('Creating new WebSocket connection')
+    setStatus('connecting')
+
+    const ws = new WebSocket(wsUrl)
+
+    ws.onopen = () => {
+      console.log('WebSocket connected')
+      setStatus('connected')
+      wsRef.current = ws
+
+      // Update terminal instance with WebSocket
+      setTerminalInstances((prev) =>
+        updateTerminalWebSocket(prev, workspaceId, ws)
+      )
+    }
+
+    ws.onclose = () => {
+      console.log('WebSocket disconnected')
+      setStatus('disconnected')
+    }
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error)
+      setStatus('disconnected')
+    }
+
+    wsRef.current = ws
+
+    // Don't close WebSocket on unmount - keep it alive
+    return () => {
+      console.log('WebSocket effect cleanup, keeping connection alive')
+    }
+  }, [workspaceId, token, terminalInstances, setTerminalInstances])
+
+  // Handle WebSocket data exchange and terminal events
+  useEffect(() => {
+    const ws = wsRef.current
     const term = termRef.current
     const fitAddon = fitAddonRef.current
+
+    if (!ws || !term || status !== 'connected') return
 
     // Send user input to server
     const disposable = term.onData((data) => {
@@ -104,7 +203,9 @@ export function Terminal({ workspaceId }: TerminalProps) {
         type: 'input',
         data,
       }
-      ws.send(JSON.stringify(message))
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(message))
+      }
     })
 
     // Receive output from server
@@ -153,7 +254,31 @@ export function Terminal({ workspaceId }: TerminalProps) {
       ws.removeEventListener('message', handleMessage)
       window.removeEventListener('resize', handleResize)
     }
-  }, [ws, status])
+  }, [status])
+
+  // Reconnect function
+  const reconnect = () => {
+    // Close existing WebSocket if any
+    if (wsRef.current) {
+      wsRef.current.close()
+    }
+
+    // Remove from instances to force recreation
+    setTerminalInstances((prev) => {
+      const newInstances = new Map(prev)
+      const instance = newInstances.get(workspaceId)
+      if (instance) {
+        newInstances.set(workspaceId, {
+          ...instance,
+          websocket: null,
+        })
+      }
+      return newInstances
+    })
+
+    // Status will be updated by WebSocket effect
+    setStatus('connecting')
+  }
 
   // Handle fullscreen toggle
   const toggleFullscreen = () => {

@@ -105,14 +105,15 @@ export function useWebSocket(url: string): UseWebSocketReturn {
   useEffect(() => {
     connect()
 
-    // Cleanup on unmount
+    // Don't cleanup WebSocket on unmount - keep connection alive
+    // This allows terminal sessions to persist across page navigation
     return () => {
+      console.log('useWebSocket unmounting, keeping connection alive')
+      // Clear reconnect timeout but keep connection
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
       }
-      if (wsRef.current) {
-        wsRef.current.close()
-      }
+      // Don't close WebSocket - it will stay connected
     }
   }, [connect])
 
