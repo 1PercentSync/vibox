@@ -24,15 +24,6 @@ interface CreateWorkspaceDialogProps {
   }) => Promise<void>
 }
 
-const commonImages = [
-  'ubuntu:22.04',
-  'ubuntu:24.04',
-  'alpine:latest',
-  'node:20',
-  'python:3.11',
-  'golang:1.22',
-]
-
 export function CreateWorkspaceDialog({
   open,
   onOpenChange,
@@ -162,18 +153,12 @@ export function CreateWorkspaceDialog({
             <Label htmlFor="image">Docker Image</Label>
             <Input
               id="image"
-              list="common-images"
               placeholder="ubuntu:22.04"
               value={image}
               onChange={(e) => setImage(e.target.value)}
             />
-            <datalist id="common-images">
-              {commonImages.map((img) => (
-                <option key={img} value={img} />
-              ))}
-            </datalist>
             <p className="text-xs text-muted-foreground">
-              Enter any Docker image (e.g., ubuntu:rolling, node:20-alpine). Common images appear as suggestions.
+              Enter any Docker image name (e.g., ubuntu:22.04, alpine:latest, node:20, python:3.11)
             </p>
           </div>
 
