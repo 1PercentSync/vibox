@@ -1,45 +1,41 @@
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useParams, Link } from 'react-router-dom'
+import { ArrowLeft, Settings, Terminal as TerminalIcon, Network } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Terminal } from '@/components/terminal/Terminal'
 import { PortsTab } from '@/components/workspace/PortsTab'
 import { ConfigTab } from '@/components/workspace/ConfigTab'
 import { workspaceApi } from '@/api/workspaces'
 import type { Workspace } from '@/api/types'
 
 export function WorkspaceDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-
+  const { id } = useParams()
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Get initial tab from URL query parameter
-  const initialTab = searchParams.get('tab') || 'terminal'
-
-  const fetchWorkspace = async () => {
-    if (!id) return
-
-    try {
-      setLoading(true)
-      const { data } = await workspaceApi.get(id)
-      setWorkspace(data)
-      setError('')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load workspace')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Fetch workspace details and auto-refresh
   useEffect(() => {
+    const fetchWorkspace = async () => {
+      if (!id) return
+
+      try {
+        if (loading) setLoading(true) // Only show loading on first fetch
+        const { data } = await workspaceApi.get(id)
+        setWorkspace(data)
+        setError('')
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to load workspace')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     fetchWorkspace()
 
-    // Auto-refresh every 5 seconds
+    // Poll workspace status every 5 seconds
     const interval = setInterval(fetchWorkspace, 5000)
     return () => clearInterval(interval)
   }, [id])
@@ -47,101 +43,129 @@ export function WorkspaceDetailPage() {
   if (loading && !workspace) {
     return (
       <div className="container mx-auto py-6">
-        <p className="text-center text-muted-foreground">Loading workspace...</p>
+        <div className="text-center">Loading...</div>
       </div>
     )
   }
 
   if (error && !workspace) {
     return (
-      <div className="container mx-auto py-6 space-y-4">
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <Button onClick={() => navigate('/')}>Back to Workspaces</Button>
+      <div className="container mx-auto py-6">
+        <div className="text-center text-red-500">{error}</div>
       </div>
     )
   }
 
   if (!workspace) {
     return (
-      <div className="container mx-auto py-6 space-y-4">
-        <Alert variant="destructive">
-          <AlertDescription>Workspace not found</AlertDescription>
-        </Alert>
-        <Button onClick={() => navigate('/')}>Back to Workspaces</Button>
+      <div className="container mx-auto py-6">
+        <div className="text-center">Workspace not found</div>
       </div>
     )
   }
 
-  // Status configuration
   const statusConfig = {
-    creating: { color: 'default' as const, label: 'Creating...' },
-    running: { color: 'default' as const, label: 'Running' },
-    error: { color: 'destructive' as const, label: 'Error' },
-    failed: { color: 'destructive' as const, label: 'Failed' },
+    creating: { color: 'blue' as const, label: 'Creating...' },
+    running: { color: 'green' as const, label: 'Running' },
+    error: { color: 'orange' as const, label: 'Error' },
+    failed: { color: 'red' as const, label: 'Failed' },
   }
 
   const config = statusConfig[workspace.status]
 
+  // Check if terminal is available
+  const canUseTerminal = workspace.status === 'running' ||
+    (workspace.status === 'error' && workspace.container_id)
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6">
       {/* Header */}
-      <div className="space-y-4">
-        <Link to="/">
-          <Button variant="outline" size="sm">
-            ← Back to Workspaces
-          </Button>
-        </Link>
+      <div className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
+          <Link to="/">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Workspaces
+            </Button>
+          </Link>
+        </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl font-bold">{workspace.name}</h1>
-            <Badge variant={config.color}>{config.label}</Badge>
+            <Badge variant={config.color as any}>{config.label}</Badge>
+          </div>
+
+          <div className="text-sm text-muted-foreground">
+            ID: {workspace.id}
           </div>
         </div>
+
+        {workspace.error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+            <strong>Error:</strong> {workspace.error}
+          </div>
+        )}
       </div>
 
-      {/* Error Alert */}
-      {workspace.error && (
-        <Alert variant="destructive">
-          <AlertDescription>{workspace.error}</AlertDescription>
-        </Alert>
-      )}
-
       {/* Tabs */}
-      <Tabs defaultValue={initialTab} className="w-full">
+      <Tabs defaultValue="terminal" className="w-full">
         <TabsList>
-          <TabsTrigger value="terminal">Terminal</TabsTrigger>
-          <TabsTrigger value="ports">Ports</TabsTrigger>
-          <TabsTrigger value="config">Config</TabsTrigger>
+          <TabsTrigger value="terminal" disabled={!canUseTerminal}>
+            <TerminalIcon className="h-4 w-4 mr-2" />
+            Terminal
+          </TabsTrigger>
+          <TabsTrigger value="ports">
+            <Network className="h-4 w-4 mr-2" />
+            Ports
+          </TabsTrigger>
+          <TabsTrigger value="config">
+            <Settings className="h-4 w-4 mr-2" />
+            Config
+          </TabsTrigger>
         </TabsList>
 
-        {/* Terminal Tab - Placeholder for Module 6 */}
-        <TabsContent value="terminal" className="mt-6">
-          <div className="border rounded-lg p-12 text-center space-y-3">
-            <h3 className="text-lg font-semibold">Terminal</h3>
-            <p className="text-muted-foreground">
-              Terminal integration will be implemented in Module 6
-            </p>
-            {workspace.status !== 'running' && (
-              <Alert>
-                <AlertDescription>
-                  Terminal is only available when the workspace is running.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+        {/* Terminal Tab */}
+        <TabsContent value="terminal" className="h-[600px]">
+          {canUseTerminal ? (
+            <Terminal workspaceId={workspace.id} />
+          ) : (
+            <div className="flex items-center justify-center h-full border rounded-lg bg-gray-50">
+              <div className="text-center text-gray-500">
+                <TerminalIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Terminal not available</p>
+                <p className="text-sm mt-2">
+                  {workspace.status === 'creating'
+                    ? 'Workspace is being created...'
+                    : 'Container is not running'}
+                </p>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
-        {/* Ports Tab */}
+        {/* Ports Tab - Using Module 5's PortsTab component */}
         <TabsContent value="ports" className="mt-6">
-          <PortsTab workspace={workspace} onUpdate={fetchWorkspace} />
+          <PortsTab workspace={workspace} onUpdate={async () => {
+            try {
+              const { data } = await workspaceApi.get(workspace.id)
+              setWorkspace(data)
+            } catch (err) {
+              console.error('Failed to refresh workspace:', err)
+            }
+          }} />
         </TabsContent>
 
-        {/* Config Tab */}
+        {/* Config Tab - Using Module 5's ConfigTab component */}
         <TabsContent value="config" className="mt-6">
-          <ConfigTab workspace={workspace} onUpdate={fetchWorkspace} />
+          <ConfigTab workspace={workspace} onUpdate={async () => {
+            try {
+              const { data } = await workspaceApi.get(workspace.id)
+              setWorkspace(data)
+            } catch (err) {
+              console.error('Failed to refresh workspace:', err)
+            }
+          }} />
         </TabsContent>
       </Tabs>
     </div>
