@@ -3,23 +3,20 @@ import { useEffect } from 'react'
 import { useAtom, useSetAtom } from 'jotai'
 import { workspacesAtom } from '@/stores/workspaces'
 import { isLoadingAtom } from '@/stores/ui'
+import { workspaceApi } from '@/api/workspaces'
 
-// This hook will be enhanced in Module 3 (API Integration)
-// For now, it provides the basic structure
 export const useWorkspaces = (options?: { autoRefresh?: boolean; interval?: number }) => {
   const [workspaces, setWorkspaces] = useAtom(workspacesAtom)
   const setIsLoading = useSetAtom(isLoadingAtom)
 
   const { autoRefresh = true, interval = 5000 } = options || {}
 
-  // Fetch workspaces function (will be implemented in Module 3)
+  // Fetch workspaces function
   const fetchWorkspaces = async () => {
     try {
       setIsLoading(true)
-      // TODO: Implement API call in Module 3
-      // const { data } = await workspaceApi.list()
-      // setWorkspaces(data)
-      console.log('Fetching workspaces...')
+      const { data } = await workspaceApi.list()
+      setWorkspaces(data)
     } catch (error) {
       console.error('Failed to fetch workspaces:', error)
     } finally {
