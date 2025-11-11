@@ -25,6 +25,27 @@ These documents record the completion status of each backend module during Phase
 
 ---
 
+### Phase 2 Frontend Module Completion Reports
+
+Location: `phase2-modules/`
+
+These documents record the completion status of each frontend module during Phase 2 development:
+
+- `MODULE3_COMPLETION.md` - API Integration (Axios client, auth, workspace APIs)
+- `MODULE4_COMPLETION.md` - Authentication UI (Login page, protected routes)
+- `MODULE5_COMPLETION.md` - Workspace UI (List, create, delete, port management)
+- `MODULE6_COMPLETION.md` - Terminal Integration (xterm.js + WebSocket)
+- `MODULE7_COMPLETION.md` - Integration & Polish (Settings, error handling, toasts)
+- `MODULE8_COMPLETION.md` - Testing & Optimization (Code splitting, build config)
+
+**Note**: Modules 1 and 2 completion reports were created but not archived (inline development).
+
+**Status**: ✅ All modules completed
+**Archived Date**: 2025-11-11
+**Reason**: Phase 2 frontend development is complete; these completion reports are for historical reference only.
+
+---
+
 ### Future Feature Proposals
 
 - `SCRIPT_AND_PRESET_PROPOSAL.md` - Script Library & Workspace Presets proposal
@@ -39,13 +60,13 @@ These documents record the completion status of each backend module during Phase
 
 For current development documentation, see the main `docs/` directory:
 
-### Backend (Phase 1 - Completed)
+### Backend (Phase 1 - ✅ Completed)
 - `PHASE1_BACKEND.md` - Backend development guide
 - `PHASE1_TASK_BREAKDOWN.md` - Backend task breakdown
 - `BACKEND_ENHANCEMENTS.md` - v1.1.0 enhancements (ports, reset, persistence)
 - `API_SPECIFICATION.md` - API specification
 
-### Frontend (Phase 2 - In Progress)
+### Frontend (Phase 2 - ✅ Completed)
 - `PHASE2_FRONTEND.md` - Frontend development guide
 - `PHASE2_TASK_BREAKDOWN.md` - Frontend task breakdown (8 modules)
 
@@ -56,13 +77,17 @@ For current development documentation, see the main `docs/` directory:
 If you need to reference any archived documents:
 
 ```bash
-# View archived modules
+# View Phase 1 archived modules
 ls docs/archive/phase1-modules/
+
+# View Phase 2 archived modules
+ls docs/archive/phase2-modules/
 
 # View a specific module report
 cat docs/archive/phase1-modules/MODULE1_COMPLETION.md
+cat docs/archive/phase2-modules/MODULE8_COMPLETION.md
 ```
 
 ---
 
-**Last Updated**: 2025-11-10
+**Last Updated**: 2025-11-11

@@ -12,12 +12,12 @@ ViBox 是一个通过 Web 界面管理 Docker 容器工作空间的系统，让�
 
 ## 项目状态
 
-🔄 **当前阶段**：第一阶段 - Go 后端开发
+✅ **当前阶段**：第二阶段 - 前端开发已完成
 
 | 阶段 | 状态 | 说明 |
 |------|------|------|
-| 第一阶段 | 🔄 进行中 | Go 后端核心功能 |
-| 第二阶段 | ⏳ 待定 | 前端界面 + MVP 集成 |
+| 第一阶段 | ✅ 已完成 | Go 后端核心功能 |
+| 第二阶段 | ✅ 已完成 | React 前端界面 + 完整集成 |
 | 第三阶段 | ⏳ 待定 | 完整功能扩展 |
 
 ## 快速开始
@@ -52,7 +52,7 @@ your-domain.com {
 
 ## 核心功能
 
-### 第一阶段（当前开发）
+### 第一阶段（已完成）✅
 
 - ✅ **Token 鉴权**（环境变量配置）
 - ✅ Docker 容器管理（创建、启动、停止、删除、重置）
@@ -61,12 +61,16 @@ your-domain.com {
 - ✅ HTTP 端口转发（动态访问 + 端口标签）
 - ✅ 数据持久化（工作空间配置自动恢复）
 
-### 第二阶段（计划）
+### 第二阶段（已完成）✅
 
-- ⏳ Web 前端界面
-- ⏳ 工作空间可视化管理
-- ⏳ 脚本管理界面
-- ⏳ 端口转发控制面板
+- ✅ **React 前端界面**（Vite + TypeScript + Tailwind CSS）
+- ✅ **工作空间可视化管理**（创建、删除、重置、状态监控）
+- ✅ **Web 终端**（xterm.js + WebSocket 集成）
+- ✅ **端口管理界面**（快捷访问、端口标签）
+- ✅ **用户认证界面**（Token 登录、Cookie 会话管理）
+- ✅ **响应式设计**（桌面、平板、移动端适配）
+- ✅ **实时状态更新**（轮询机制）
+- ✅ **错误处理与通知**（Toast 提示、全局错误处理）
 
 ### 第三阶段（计划）
 
@@ -77,7 +81,7 @@ your-domain.com {
 
 ## 技术栈
 
-### 后端（第一阶段）
+### 后端
 
 - **语言**：Go 1.25+
 - **Web 框架**：Gin
@@ -85,16 +89,33 @@ your-domain.com {
 - **WebSocket**：github.com/gorilla/websocket
 - **反向代理**：net/http/httputil（标准库）
 
-### 前端（待定）
+### 前端
 
-- React/Vue + TypeScript + xterm.js（待定）
+- **框架**：React 18.3+ (函数组件 + Hooks)
+- **构建工具**：Vite 7.2+
+- **语言**：TypeScript 5.9+
+- **样式**：Tailwind CSS 4.1+ (utility-first)
+- **UI 组件**：shadcn UI (基于 Radix UI)
+- **状态管理**：Jotai 2.15+ (原子化状态)
+- **路由**：React Router DOM 7.9+
+- **HTTP 客户端**：Axios 1.13+
+- **终端模拟器**：xterm.js 5.5+ (WebGL 渲染)
+- **通知组件**：Sonner 2.0+
+- **图标库**：Lucide React
 
 ## 文档
 
+### 后端文档
 - [项目路线图](./PROJECT_ROADMAP.md) - 三个阶段的详细规划
-- [第一阶段：后端实现](./docs/PHASE1_BACKEND.md) - 当前阶段的详细技术文档
+- [第一阶段：后端实现](./docs/PHASE1_BACKEND.md) - 后端技术文档
 - [任务拆分方案](./docs/PHASE1_TASK_BREAKDOWN.md) - 模块化开发和并行任务分配
 - [API 规范](./docs/API_SPECIFICATION.md) - RESTful API 和 WebSocket 接口定义
+- [后端增强方案](./docs/BACKEND_ENHANCEMENTS.md) - 端口标签、容器重置、数据持久化
+
+### 前端文档
+- [第二阶段：前端开发](./docs/PHASE2_FRONTEND.md) - 前端技术文档
+- [前端任务拆分](./docs/PHASE2_TASK_BREAKDOWN.md) - 8个模块的详细任务拆分
+- [Module 1-7 完成报告](./docs/) - 各模块的实现报告
 
 ## 架构
 
@@ -178,11 +199,18 @@ curl "http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token
 
 ### 环境要求
 
+**后端**:
 - Go 1.25+
 - Docker
 - Git
 
+**前端**:
+- Node.js 18+
+- npm or pnpm
+
 ### 本地开发
+
+#### 后端开发
 
 ```bash
 # 克隆项目
@@ -195,13 +223,79 @@ go mod download
 # 设置 API Token（必须）
 export API_TOKEN=dev-token-123
 
-# 运行
+# 运行后端
 go run ./cmd/server
+
+# 后端将运行在 http://localhost:3000
+```
+
+#### 前端开发
+
+```bash
+# 进入前端目录
+cd frontend
+
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 前端将运行在 http://localhost:5173
+# Vite 自动代理 API 请求到 http://localhost:3000
+```
+
+#### Mock 服务器（前端独立开发）
+
+```bash
+# 在 frontend 目录下
+
+# 启动 Mock 服务器（端口 3000）
+npm run mock
+
+# 在另一个终端启动前端
+npm run dev
+```
+
+#### 生产构建
+
+```bash
+# 构建前端
+cd frontend
+npm run build
+
+# 输出到 frontend/dist/
+
+# 预览生产构建
+npm run preview
+
+# 访问 http://localhost:4173
+```
+
+#### 完整集成（前端 + 后端）
+
+```bash
+# 1. 构建前端
+cd frontend
+npm run build
+
+# 2. 将构建产物嵌入到 Go 后端
+# TODO: 实现静态文件嵌入
+
+# 3. 构建后端
+cd ..
+go build -o vibox ./cmd/server
+
+# 4. 运行单一可执行文件
+export API_TOKEN=your-secret-token
+./vibox
 ```
 
 ### 开发进度
 
-参见 [第一阶段开发计划](./docs/PHASE1_BACKEND.md#开发计划)
+- **第一阶段 (后端)**：✅ 已完成 - 参见 [第一阶段开发计划](./docs/PHASE1_BACKEND.md#开发计划)
+- **第二阶段 (前端)**：✅ 已完成 - 参见 [前端任务拆分](./docs/PHASE2_TASK_BREAKDOWN.md)
+- **第三阶段**：⏳ 计划中
 
 ## 贡献
 

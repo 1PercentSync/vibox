@@ -1,17 +1,25 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { Toaster } from 'sonner'
-import { LoginPage } from './pages/LoginPage'
-import { WorkspacesPage } from './pages/WorkspacesPage'
-import { WorkspaceDetailPage } from './pages/WorkspaceDetailPage'
-import { SettingsPage } from './pages/SettingsPage'
 import { Layout } from './components/layout/Layout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { LoadingSpinner } from './components/LoadingSpinner'
+
+// Lazy load pages for code splitting
+const LoginPage = lazy(() => import('./pages/LoginPage').then(m => ({ default: m.LoginPage })))
+const WorkspacesPage = lazy(() => import('./pages/WorkspacesPage').then(m => ({ default: m.WorkspacesPage })))
+const WorkspaceDetailPage = lazy(() => import('./pages/WorkspaceDetailPage').then(m => ({ default: m.WorkspaceDetailPage })))
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 
 const router = createBrowserRouter([
   {
     path: '/login',
-    element: <LoginPage />,
+    element: (
+      <Suspense fallback={<LoadingSpinner />}>
+        <LoginPage />
+      </Suspense>
+    ),
   },
   {
     path: '/',
@@ -23,15 +31,27 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <WorkspacesPage />,
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <WorkspacesPage />
+          </Suspense>
+        ),
       },
       {
         path: 'workspace/:id',
-        element: <WorkspaceDetailPage />,
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <WorkspaceDetailPage />
+          </Suspense>
+        ),
       },
       {
         path: 'settings',
-        element: <SettingsPage />,
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SettingsPage />
+          </Suspense>
+        ),
       },
     ],
   },
