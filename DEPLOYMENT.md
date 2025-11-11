@@ -1,11 +1,15 @@
 # ViBox 部署指南
 
+> **部署方式**：ViBox 仅支持 Docker 部署
+
+---
+
 ## 目录
 
 1. [快速开始](#快速开始)
-2. [使用 Docker Compose 部署](#使用-docker-compose-部署)
+2. [使用 Docker Compose 部署（推荐）](#使用-docker-compose-部署推荐)
 3. [使用 Docker 手动部署](#使用-docker-手动部署)
-4. [从源码构建](#从源码构建)
+4. [从源码构建镜像](#从源码构建镜像)
 5. [环境变量配置](#环境变量配置)
 6. [生产环境部署](#生产环境部署)
 7. [故障排除](#故障排除)
@@ -17,7 +21,7 @@
 ### 前置条件
 
 - Docker 20.10+
-- Docker Compose v2.0+（可选）
+- Docker Compose v2.0+（推荐）
 - Git
 
 ### 快速部署
@@ -39,11 +43,14 @@ docker-compose up -d
 # 5. 检查服务状态
 docker-compose ps
 curl http://localhost:3000/health
+
+# 6. 访问应用
+# 浏览器打开: http://localhost:3000
 ```
 
 ---
 
-## 使用 Docker Compose 部署
+## 使用 Docker Compose 部署（推荐）
 
 ### 1. 准备配置
 
@@ -139,9 +146,16 @@ docker rm -f vibox
 
 ---
 
-## 从源码构建
+## 从源码构建镜像
 
-### 1. 构建 Docker 镜像
+### 构建说明
+
+ViBox 使用**多阶段 Docker 构建**（Phase 2.5），自动完成：
+1. **Stage 1**: 构建 React 前端（Node.js）
+2. **Stage 2**: 构建 Go 后端并嵌入前端
+3. **Stage 3**: 创建最小运行时镜像
+
+### 1. 构建本地镜像
 
 ```bash
 # 克隆仓库
@@ -151,14 +165,21 @@ cd vibox
 # 构建镜像
 docker build -t vibox:local .
 
-# 构建特定平台镜像
+# 查看镜像
+docker images | grep vibox
+```
+
+### 2. 多平台构建
+
+```bash
+# 使用 buildx 构建多平台镜像
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t vibox:local \
   .
 ```
 
-### 2. 本地运行
+### 3. 使用本地镜像运行
 
 ```bash
 # 使用本地构建的镜像
@@ -170,24 +191,47 @@ docker run -d \
   vibox:local
 ```
 
-### 3. 直接运行（无 Docker）
+### 构建架构
 
-```bash
-# 安装依赖
-go mod download
-
-# 构建
-go build -o server ./cmd/server
-
-# 设置环境变量
-export API_TOKEN=$(openssl rand -hex 32)
-export PORT=3000
-export DOCKER_HOST=unix:///var/run/docker.sock
-export DEFAULT_IMAGE=ubuntu:22.04
-
-# 运行
-./server
 ```
+┌────────────────────────────────────────┐
+│ Stage 1: Frontend Builder (Node.js)   │
+│ - npm ci                               │
+│ - npm run build                        │
+│ → frontend/dist/                       │
+└────────────────┬───────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────────────────┐
+│ Stage 2: Backend Builder (Go)         │
+│ - go mod download                      │
+│ - Copy frontend/dist → static/dist     │
+│ - go build (embeds frontend)           │
+│ → /build/vibox                         │
+└────────────────┬───────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────────────────┐
+│ Stage 3: Runtime (Alpine)             │
+│ - Copy vibox binary                    │
+│ - Minimal runtime dependencies         │
+│ → Final image (~30-40MB)               │
+└────────────────────────────────────────┘
+```
+
+### 构建优化
+
+Docker 构建过程已优化：
+- ✅ 利用 Docker 层缓存
+- ✅ 前端构建在独立阶段
+- ✅ 最小运行时镜像（Alpine Linux）
+- ✅ 静态二进制文件（无 CGO 依赖）
+- ✅ 去除调试符号（-ldflags="-s -w"）
+
+**镜像大小**：
+- Frontend Builder: ~500MB（仅构建阶段）
+- Backend Builder: ~1GB（仅构建阶段）
+- **最终运行时镜像: ~30-40MB** ✅
 
 ---
 
@@ -297,7 +341,7 @@ sudo ufw deny 3000/tcp  # 阻止直接访问
 **健康检查**：
 ```bash
 # 使用 cron 定期检查
-*/5 * * * * curl -f http://localhost:3000/health || systemctl restart vibox
+*/5 * * * * curl -f http://localhost:3000/health || systemctl restart docker-vibox
 ```
 
 **日志轮转**：
@@ -475,5 +519,6 @@ docker-compose.yml:
 ---
 
 **部署成功后，访问**：
+- 应用: http://localhost:3000
 - 健康检查: http://localhost:3000/health
 - API 文档: 参见 [API_SPECIFICATION.md](./docs/API_SPECIFICATION.md)

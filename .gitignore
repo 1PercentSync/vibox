@@ -52,3 +52,10 @@ Thumbs.db
 coverage.html
 coverage.out
 *.cover
+
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+
+# Static files embedded in binary
+internal/static/dist/

@@ -1,10 +1,15 @@
 package api
 
 import (
+	"io/fs"
+	"net/http"
+	"strings"
+
 	"github.com/1PercentSync/vibox/internal/api/handler"
 	"github.com/1PercentSync/vibox/internal/api/middleware"
 	"github.com/1PercentSync/vibox/internal/config"
 	"github.com/1PercentSync/vibox/internal/service"
+	"github.com/1PercentSync/vibox/internal/static"
 	"github.com/gin-gonic/gin"
 )
 
@@ -76,6 +81,42 @@ func SetupRouter(
 		middleware.AuthMiddleware(cfg.APIToken),
 		proxyHandler.Forward,
 	)
+
+	// Static file serving + SPA fallback
+	// This must be last to not override API routes
+	staticFS, err := fs.Sub(static.StaticFiles, "dist")
+	if err != nil {
+		panic("Failed to create sub-filesystem for static files: " + err.Error())
+	}
+
+	router.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// Skip API, WebSocket, forward, and health routes
+		if strings.HasPrefix(path, "/api") ||
+			strings.HasPrefix(path, "/ws") ||
+			strings.HasPrefix(path, "/forward") ||
+			path == "/health" {
+			c.Next()
+			return
+		}
+
+		// Try to serve static file
+		filePath := strings.TrimPrefix(path, "/")
+		if filePath == "" {
+			filePath = "index.html"
+		}
+
+		if _, err := staticFS.Open(filePath); err == nil {
+			c.FileFromFS(path, http.FS(staticFS))
+			c.Abort()
+			return
+		}
+
+		// SPA fallback: serve index.html for all unmatched routes
+		c.FileFromFS("/index.html", http.FS(staticFS))
+		c.Abort()
+	})
 
 	return router
 }
