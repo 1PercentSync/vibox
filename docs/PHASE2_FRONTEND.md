@@ -216,15 +216,7 @@ const store = getDefaultStore()
 const client = axios.create({
   baseURL: '/api',
   timeout: 30000,
-})
-
-// 请求拦截器：自动添加 token
-client.interceptors.request.use((config) => {
-  const token = store.get(tokenAtom)
-  if (token) {
-    config.headers['X-ViBox-Token'] = token
-  }
-  return config
+  withCredentials: true,  // 自动发送 Cookie
 })
 
 // 响应拦截器：统一错误处理
@@ -232,8 +224,9 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token 失效，跳转登录
+      // 认证失败，清除 token 并跳转登录
       store.set(tokenAtom, null)
+      localStorage.removeItem('api_token')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -241,6 +234,26 @@ client.interceptors.response.use(
 )
 
 export default client
+```
+
+**注意**：
+- **无需请求拦截器**！Cookie 会自动发送（`withCredentials: true`）
+- localStorage 中的 token 仅用于前端状态管理
+- 后端通过 Cookie 验证身份
+
+```typescript
+// api/auth.ts
+import client from './client'
+
+export const authApi = {
+  // 登录（设置 Cookie）
+  login: (token: string) =>
+    client.post('/auth/login', { token }),
+
+  // 登出（清除 Cookie）
+  logout: () =>
+    client.post('/auth/logout'),
+}
 ```
 
 ```typescript
@@ -288,6 +301,8 @@ export const useWebSocket = (url: string) => {
   useEffect(() => {
     if (!token) return
 
+    // 注意：WebSocket会自动发送Cookie，但为了兼容性，也支持查询参数
+    // 后端优先使用Cookie，查询参数作为备选
     const wsUrl = `${url}?token=${token}`
     const connect = () => {
       setStatus('connecting')
@@ -458,9 +473,15 @@ ViBox 前端包含以下核心页面：
 **交互**：
 1. 用户输入 token
 2. 点击登录
-3. 验证 token（调用 `/api/workspaces` 测试）
-4. 成功 → 跳转工作空间列表
-5. 失败 → 显示错误提示
+3. 调用 `POST /api/auth/login` 验证 token
+4. 成功 → 后端设置 Cookie → 跳转工作空间列表
+5. 失败 → 显示错误提示（"Invalid token"）
+
+**实现要点**：
+- 调用登录API，后端会自动设置 HttpOnly Cookie
+- 将 token 保存到 localStorage（用于前端状态管理）
+- Cookie 会在所有后续请求中自动发送
+- 无需在 Axios 中手动添加 header
 
 ---
 
@@ -815,10 +836,11 @@ ViBox 前端包含以下核心页面：
 --primary-foreground: 210 40% 98%; /* 白色 */
 
 /* 状态颜色 */
---success: 142 76% 36%;    /* 绿色 - Running */
---warning: 48 96% 53%;     /* 黄色 - Creating */
---destructive: 0 84% 60%;  /* 红色 - Error */
---muted: 210 40% 96%;      /* 灰色 - Stopped */
+--success: 142 76% 36%;      /* 绿色 - Running */
+--warning: 48 96% 53%;       /* 蓝色/黄色 - Creating */
+--error: 38 92% 50%;         /* 橙色 - Error (容器在运行) */
+--destructive: 0 84% 60%;    /* 红色 - Failed (容器停止) */
+--muted: 210 40% 96%;        /* 灰色 - 次要信息 */
 ```
 
 #### 字体
@@ -1190,12 +1212,13 @@ CMD ["./vibox"]
 export interface Workspace {
   id: string
   name: string
-  container_id: string
-  status: 'creating' | 'running' | 'stopped' | 'error'
+  container_id?: string  // 可选：容器创建失败时可能为空
+  status: 'creating' | 'running' | 'error' | 'failed'
   created_at: string
+  updated_at: string
   config: WorkspaceConfig
-  ports?: Record<string, string>  // 新增：端口标签映射
-  error?: string
+  ports?: Record<string, string>  // 端口标签映射：端口号 -> 服务名
+  error?: string  // 错误信息（status为error或failed时）
 }
 
 export interface WorkspaceConfig {
@@ -1213,11 +1236,78 @@ export interface CreateWorkspaceRequest {
   name: string
   image?: string
   scripts?: Script[]
-  ports?: Record<string, string>  // 新增：端口标签映射
+  ports?: Record<string, string>
 }
 
 export interface UpdatePortsRequest {
   ports: Record<string, string>
+}
+```
+
+### 状态处理逻辑
+
+```typescript
+// src/components/workspace/WorkspaceCard.tsx
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import type { Workspace } from '@/types/workspace'
+
+const WorkspaceCard = ({ workspace }: { workspace: Workspace }) => {
+  // 状态显示配置
+  const statusConfig = {
+    creating: { color: 'blue', label: 'Creating...', canUseTerminal: false },
+    running: { color: 'green', label: 'Running', canUseTerminal: true },
+    error: { color: 'orange', label: 'Error', canUseTerminal: true },  // 容器在运行
+    failed: { color: 'red', label: 'Failed', canUseTerminal: false },  // 容器停止
+  }
+
+  const config = statusConfig[workspace.status]
+
+  // 按钮可用性判断
+  const canUseTerminal = config.canUseTerminal
+  const canUsePorts = workspace.status === 'running'  // 只有running才能访问端口
+  const canReset = true  // 所有状态都可重置
+  const canDelete = true  // 所有状态都可删除
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{workspace.name}</CardTitle>
+        <Badge variant={config.color}>{config.label}</Badge>
+      </CardHeader>
+
+      <CardContent>
+        {/* 错误信息 */}
+        {workspace.error && (
+          <Alert variant="destructive">
+            <AlertDescription>{workspace.error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* 端口快速访问（仅running状态） */}
+        {canUsePorts && workspace.ports && Object.entries(workspace.ports).map(([port, label]) => (
+          <Button
+            key={port}
+            onClick={() => window.open(`/forward/${workspace.id}/${port}/`)}
+          >
+            {label}:{port}
+          </Button>
+        ))}
+      </CardContent>
+
+      <CardFooter>
+        {/* Terminal按钮：creating/failed不可用 */}
+        <Button disabled={!canUseTerminal}>Terminal</Button>
+
+        {/* Ports按钮：只有running可用 */}
+        <Button disabled={!canUsePorts}>Ports</Button>
+
+        {/* Reset和Delete始终可用 */}
+        <Button onClick={handleReset}>Reset</Button>
+        <Button onClick={handleDelete} variant="destructive">Delete</Button>
+      </CardFooter>
+    </Card>
+  )
 }
 ```
 

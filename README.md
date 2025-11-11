@@ -120,15 +120,24 @@ Caddy (domain.com)
 
 ## API 示例
 
-> **注意**：所有 API 都需要 Token 鉴权
+> **注意**：所有 API 都需要 Cookie 鉴权（浏览器）或查询参数鉴权（外部工具）
+
+### 登录（设置 Cookie）
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"token": "your-secret-token"}'
+```
 
 ### 创建工作空间
 
 ```bash
-# 使用 Authorization Header（推荐）
+# 使用 Cookie（浏览器自动发送）
 curl -X POST http://localhost:3000/api/workspaces \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-secret-token" \
+  -b cookies.txt \
   -d '{
     "name": "my-workspace",
     "image": "ubuntu:22.04",
@@ -144,17 +153,12 @@ curl -X POST http://localhost:3000/api/workspaces \
       "3000": "Web App"
     }
   }'
-
-# 或使用查询参数
-curl -X POST "http://localhost:3000/api/workspaces?token=your-secret-token" \
-  -H "Content-Type: application/json" \
-  -d '{ ... }'
 ```
 
 ### 访问终端
 
 ```javascript
-// WebSocket 连接需要在 URL 中携带 token
+// WebSocket 会自动发送 Cookie，也支持查询参数（备选）
 const ws = new WebSocket('ws://localhost:3000/ws/terminal/{workspace-id}?token=your-secret-token');
 ws.onmessage = (event) => console.log(event.data);
 ws.send(JSON.stringify({type: 'input', data: 'ls -la\n'}));
@@ -163,9 +167,11 @@ ws.send(JSON.stringify({type: 'input', data: 'ls -la\n'}));
 ### 访问容器内 HTTP 服务
 
 ```bash
-# 容器内运行的服务在 8080 端口
-# 通过以下 URL 访问（需要 token）：
-http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token
+# 浏览器访问（Cookie自动发送）：
+http://localhost:3000/forward/{workspace-id}/8080/
+
+# 外部工具访问（使用查询参数）：
+curl "http://localhost:3000/forward/{workspace-id}/8080/?token=your-secret-token"
 ```
 
 ## 开发

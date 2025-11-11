@@ -55,54 +55,200 @@ X-Request-ID: {request-id}
 
 ## 鉴权机制
 
-### Token 鉴权
+### Cookie 鉴权
 
-所有 API 都需要提供有效的 API Token。
+ViBox 使用 **HTTP Cookie** 作为主要的身份验证方式。
 
-#### 方式 1：X-ViBox-Token Header（推荐）
+#### 登录流程
+
+1. 用户通过登录接口提交 API Token
+2. 后端验证 token 并设置 Cookie
+3. 后续所有请求自动携带 Cookie（浏览器行为）
 
 ```http
-X-ViBox-Token: {your-api-token}
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "token": "your-api-token"
+}
 ```
 
-**推荐理由**：
-- 避免与容器内应用的 `Authorization` header 冲突
-- 在代理请求时，ViBox 会自动移除此 header，不会泄露给容器
-- 容器内应用可以使用自己的认证机制
-
-#### 方式 2：Authorization Header（向后兼容）
-
+**响应**：
 ```http
-Authorization: Bearer {your-api-token}
+HTTP/1.1 200 OK
+Set-Cookie: vibox-token=your-api-token; Path=/; Max-Age=86400; HttpOnly; SameSite=Lax
+
+{
+  "message": "Login successful"
+}
 ```
 
-**注意**：使用此方式时，token 会被转发到容器内应用
+**Cookie 属性说明**：
+- `Path=/`：全局有效，所有路径都可用
+- `Max-Age=86400`：24小时有效期
+- `HttpOnly`：防止 JavaScript 访问，增强安全性
+- `SameSite=Lax`：CSRF 防护
 
-#### 方式 3：查询参数（WebSocket 专用）
+#### 认证方式
 
+**方式 1：Cookie（推荐）**
+
+浏览器自动携带 Cookie，无需手动设置：
 ```http
-GET /ws/terminal/:id?token={your-api-token}
+GET /api/workspaces
+Cookie: vibox-token=your-api-token
+```
+
+**方式 2：查询参数（仅 WebSocket）**
+
+WebSocket 连接可以使用查询参数：
+```http
+ws://localhost:3000/ws/terminal/:id?token=your-api-token
 ```
 
 **使用场景**：
-- WebSocket 连接必须使用查询参数方式（浏览器限制）
-- HTTP 请求不推荐使用（token 会出现在 URL 日志中）
+- WebSocket 连接（浏览器 WebSocket API 会自动发送 Cookie，但某些工具可能不支持）
+- 外部工具访问（如 curl、Postman）
 
-**配置**：
-- Token 通过环境变量 `API_TOKEN` 配置
-- 鉴权优先级：`X-ViBox-Token` > `Authorization` > `?token=`
+**注意**：
+- Cookie 是首选方式（浏览器自动处理）
+- 查询参数仅用于 WebSocket 连接或外部工具
+- Token 会出现在 URL 中，有日志泄露风险
+
+#### 认证优先级
+
+```
+Cookie > Query Parameter (?token=)
+```
+
+后端会按以下顺序检查：
+1. 检查 Cookie 中的 `vibox-token`
+2. 检查查询参数 `?token=`
 
 ### 鉴权失败响应
 
+**API 请求（JSON）**：
 ```http
 HTTP/1.1 401 Unauthorized
 Content-Type: application/json
 
 {
-  "error": "Unauthorized: invalid or missing token",
+  "error": "Unauthorized: invalid or missing authentication",
   "code": "UNAUTHORIZED"
 }
 ```
+
+**浏览器请求（HTML）**：
+```http
+HTTP/1.1 302 Found
+Location: /login
+```
+
+浏览器请求（`Accept: text/html`）会被重定向到登录页。
+
+### 登出流程
+
+清除 Cookie 即可：
+
+```http
+POST /api/auth/logout
+```
+
+**响应**：
+```http
+HTTP/1.1 200 OK
+Set-Cookie: vibox-token=; Path=/; Max-Age=-1
+
+{
+  "message": "Logout successful"
+}
+```
+
+---
+
+## 认证 API
+
+### 1. 登录
+
+验证 API Token 并设置认证 Cookie。
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
+
+#### 请求体
+
+```json
+{
+  "token": "your-api-token"
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `token` | string | ✅ | API Token（配置在环境变量 API_TOKEN 中） |
+
+#### 成功响应
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: vibox-token=your-api-token; Path=/; Max-Age=86400; HttpOnly; SameSite=Lax
+Content-Type: application/json
+
+{
+  "message": "Login successful"
+}
+```
+
+#### 错误响应
+
+**Token 无效**：
+```http
+HTTP/1.1 401 Unauthorized
+
+{
+  "error": "Invalid token",
+  "code": "UNAUTHORIZED"
+}
+```
+
+**请求格式错误**：
+```http
+HTTP/1.1 400 Bad Request
+
+{
+  "error": "Invalid request: token is required",
+  "code": "INVALID_REQUEST"
+}
+```
+
+---
+
+### 2. 登出
+
+清除认证 Cookie。
+
+```http
+POST /api/auth/logout
+```
+
+#### 成功响应
+
+```http
+HTTP/1.1 200 OK
+Set-Cookie: vibox-token=; Path=/; Max-Age=-1
+Content-Type: application/json
+
+{
+  "message": "Logout successful"
+}
+```
+
+**注意**：登出接口无需认证，任何人都可以调用（只是清除 Cookie）。
 
 ---
 
@@ -716,14 +862,15 @@ for {
 - 如果端口没有服务监听，将返回 502 或 504 错误
 
 **鉴权说明**：
-- ⚠️ **必须提供 ViBox API Token** 才能访问端口转发功能
-- 推荐使用 `X-ViBox-Token` header（避免与容器应用的认证冲突）
-- ViBox 会自动移除 `X-ViBox-Token` header，不会传递给容器
-- 容器内应用的 `Authorization` header 会被完整保留
+- ⚠️ **必须通过认证** 才能访问端口转发功能
+- **浏览器访问**：自动使用 Cookie 鉴权（登录后自动生效）
+- **外部工具访问**：使用查询参数 `?token=` 或手动设置 Cookie
+- ViBox 会自动移除 `vibox-token` Cookie，不会传递给容器
+- 容器内应用的所有 header 和 Cookie 会被完整保留
 
 ```http
 {METHOD} /forward/:id/:port/*path
-X-ViBox-Token: {your-api-token}
+Cookie: vibox-token={your-api-token}
 ```
 
 #### 路径参数
@@ -736,33 +883,36 @@ X-ViBox-Token: {your-api-token}
 
 #### 示例
 
-**访问容器内 8080 端口的 HTTP 服务**：
+**浏览器访问（推荐）**：
+
+```javascript
+// 登录后，浏览器自动携带 Cookie
+window.open('/forward/ws-a1b2c3d4/8080/')
+// Cookie 会自动发送，无需手动设置
+```
+
+**外部工具访问**：
 
 ```bash
-# 容器内启动服务
-docker exec {container} python3 -m http.server 8080
-
-# 方式1：使用 X-ViBox-Token header（推荐）
-curl -H "X-ViBox-Token: your-token" \
-  http://localhost:3000/forward/ws-a1b2c3d4/8080/
-
-# 方式2：使用查询参数（备选）
+# 方式1：使用查询参数（简单）
 curl "http://localhost:3000/forward/ws-a1b2c3d4/8080/?token=your-token"
+
+# 方式2：手动设置 Cookie
+curl -H "Cookie: vibox-token=your-token" \
+  http://localhost:3000/forward/ws-a1b2c3d4/8080/
 ```
 
 **访问特定路径**：
 
 ```bash
-curl -H "X-ViBox-Token: your-token" \
-  http://localhost:3000/forward/ws-a1b2c3d4/8080/api/users
+curl "http://localhost:3000/forward/ws-a1b2c3d4/8080/api/users?token=your-token"
 # 实际访问：http://{container-ip}:8080/api/users
 ```
 
 **POST 请求**：
 
 ```bash
-curl -X POST http://localhost:3000/forward/ws-a1b2c3d4/3000/api/data \
-  -H "X-ViBox-Token: your-token" \
+curl -X POST "http://localhost:3000/forward/ws-a1b2c3d4/3000/api/data?token=your-token" \
   -H "Content-Type: application/json" \
   -d '{"key": "value"}'
 ```
@@ -770,22 +920,21 @@ curl -X POST http://localhost:3000/forward/ws-a1b2c3d4/3000/api/data \
 **同时使用容器应用的认证**：
 
 ```bash
-# ViBox 层认证 + 容器应用层认证
-curl http://localhost:3000/forward/ws-a1b2c3d4/3000/api/protected \
-  -H "X-ViBox-Token: vibox-api-token" \
-  -H "Authorization: Bearer app-user-token"
-# X-ViBox-Token 会被移除
-# Authorization 会被转发给容器内应用
+# ViBox 层认证（Cookie） + 容器应用层认证（Header/Cookie）
+curl "http://localhost:3000/forward/ws-a1b2c3d4/3000/api/protected?token=vibox-token" \
+  -H "Authorization: Bearer app-user-token" \
+  -H "Cookie: app-session=abc123"
+# vibox-token Cookie 会被移除
+# Authorization 和 app-session Cookie 会被转发给容器内应用
 ```
 
 ### 代理行为
 
 #### 请求处理
-- **请求头**：原样转发（除特殊处理的 header）
+- **请求头**：原样转发（除特殊处理的 header/cookie）
   - `Host`: 自动修改为容器 IP:端口
-  - `X-ViBox-Token`: **自动移除**，不会传递给容器
-  - `Authorization`: 完整保留，传递给容器应用
-  - 其他 header: 原样转发
+  - `Cookie: vibox-token`: **自动移除**，不会传递给容器
+  - 其他 header/cookie: 完整保留，传递给容器应用
 - **请求体**：原样转发
 - **查询参数**：原样转发（包括 `?token=` 如果存在）
 
@@ -937,24 +1086,52 @@ HTTP/1.1 400 Bad Request
 
 ### 工作空间状态
 
-| 状态 | 说明 | 可执行操作 |
-|------|------|-----------|
-| `creating` | 正在创建容器和执行脚本 | 查询 |
-| `running` | 容器运行中 | 查询、终端、代理、删除 |
-| `stopped` | 容器已停止 | 查询、删除 |
-| `error` | 创建或运行出错 | 查询、删除 |
+| 状态 | 说明 | 终端可用 | 可执行操作 |
+|------|------|---------|-----------|
+| `creating` | 正在创建容器和执行脚本 | ❌ | 查询 |
+| `running` | 容器运行中，一切正常 | ✅ | 查询、终端、端口、重置、删除 |
+| `error` | 脚本执行失败，但容器仍在运行 | ✅ | 查询、终端（调试）、重置、删除 |
+| `failed` | 容器创建/启动失败或已停止 | ❌ | 查询、重置、删除 |
+
+**状态说明**：
+- **`creating`**：容器正在创建中或初始化脚本正在执行
+- **`running`**：工作空间正常运行，所有功能可用
+- **`error`**：初始化脚本执行失败，但容器仍在运行，可以通过终端调试
+- **`failed`**：容器创建失败、启动失败或运行后停止（总是异常情况）
+
+**重要**：
+- `error` 状态下终端仍可用，方便用户调试脚本问题
+- `failed` 状态下容器不可访问，只能重置或删除
 
 ---
 
 ## 完整示例流程
 
-### 场景：创建工作空间并访问终端
+### 场景：登录并创建工作空间访问终端
+
+#### 0. 登录（设置 Cookie）
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"token": "my-secret-token"}'
+```
+
+**响应**：
+```json
+{
+  "message": "Login successful"
+}
+```
+
+Cookie 已保存到 `cookies.txt`，后续请求自动使用。
 
 #### 1. 创建工作空间
 
 ```bash
 curl -X POST http://localhost:3000/api/workspaces \
-  -H "Authorization: Bearer my-secret-token" \
+  -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{
     "name": "dev-env",
@@ -983,7 +1160,7 @@ curl -X POST http://localhost:3000/api/workspaces \
 
 ```bash
 curl http://localhost:3000/api/workspaces/ws-xyz789 \
-  -H "Authorization: Bearer my-secret-token"
+  -b cookies.txt
 ```
 
 **等待 status 变为 `running`**
@@ -1025,7 +1202,7 @@ curl "http://localhost:3000/forward/ws-xyz789/3000/?token=my-secret-token"
 
 ```bash
 curl -X DELETE http://localhost:3000/api/workspaces/ws-xyz789 \
-  -H "Authorization: Bearer my-secret-token"
+  -b cookies.txt
 ```
 
 **响应**：

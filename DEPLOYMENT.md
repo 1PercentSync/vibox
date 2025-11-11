@@ -83,9 +83,14 @@ docker-compose down -v
 # 健康检查
 curl http://localhost:3000/health
 
-# 测试 API（需要替换 your-token）
-curl -H "Authorization: Bearer your-token" \
-  http://localhost:3000/api/workspaces
+# 登录并测试 API
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"token": "your-token"}'
+
+# 访问 API（Cookie 自动发送）
+curl -b cookies.txt http://localhost:3000/api/workspaces
 ```
 
 ---
