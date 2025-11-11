@@ -55,10 +55,11 @@ your-domain.com {
 ### 第一阶段（当前开发）
 
 - ✅ **Token 鉴权**（环境变量配置）
-- ✅ Docker 容器管理（创建、启动、停止、删除）
+- ✅ Docker 容器管理（创建、启动、停止、删除、重置）
 - ✅ 自定义脚本执行
 - ✅ WebSSH 终端访问
-- ✅ HTTP 端口转发
+- ✅ HTTP 端口转发（动态访问 + 端口标签）
+- ✅ 数据持久化（工作空间配置自动恢复）
 
 ### 第二阶段（计划）
 
@@ -137,7 +138,11 @@ curl -X POST http://localhost:3000/api/workspaces \
         "content": "#!/bin/bash\napt-get update && apt-get install -y curl git",
         "order": 1
       }
-    ]
+    ],
+    "ports": {
+      "8080": "VS Code Server",
+      "3000": "Web App"
+    }
   }'
 
 # 或使用查询参数

@@ -135,7 +135,12 @@ Content-Type: application/json
       "content": "#!/bin/bash\nuseradd -m -s /bin/bash developer",
       "order": 2
     }
-  ]
+  ],
+  "ports": {
+    "8080": "VS Code Server",
+    "3000": "Web App"
+  },
+  "auto_restore": true
 }
 ```
 
@@ -149,6 +154,7 @@ Content-Type: application/json
 | `scripts[].name` | string | ✅ | - | 脚本名称 |
 | `scripts[].content` | string | ✅ | - | 脚本内容（Bash） |
 | `scripts[].order` | integer | ✅ | - | 执行顺序（从小到大） |
+| `ports` | object | ❌ | `{}` | 端口标签映射（key=端口号，value=服务名） |
 
 #### 成功响应
 
@@ -162,7 +168,6 @@ Content-Type: application/json
   "container_id": "docker-abc123",
   "status": "creating",
   "created_at": "2025-11-10T12:00:00Z",
-  "updated_at": "2025-11-10T12:00:00Z",
   "config": {
     "image": "ubuntu:22.04",
     "scripts": [
@@ -177,6 +182,10 @@ Content-Type: application/json
         "order": 2
       }
     ]
+  },
+  "ports": {
+    "8080": "VS Code Server",
+    "3000": "Web App"
   }
 }
 ```
@@ -354,6 +363,156 @@ HTTP/1.1 500 Internal Server Error
 
 {
   "error": "Failed to delete container: container is locked",
+  "code": "DOCKER_ERROR"
+}
+```
+
+---
+
+### 5. 更新端口映射
+
+更新工作空间的端口标签映射。
+
+```http
+PUT /api/workspaces/:id/ports
+X-ViBox-Token: {token}
+Content-Type: application/json
+```
+
+#### 路径参数
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 工作空间 ID |
+
+#### 请求体
+
+```json
+{
+  "ports": {
+    "8080": "VS Code Server",
+    "3000": "Web App",
+    "5432": "PostgreSQL"
+  }
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `ports` | object | ✅ | 端口标签映射（key=端口号，value=服务名） |
+
+#### 成功响应
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "id": "ws-a1b2c3d4",
+  "name": "my-workspace",
+  "ports": {
+    "8080": "VS Code Server",
+    "3000": "Web App",
+    "5432": "PostgreSQL"
+  },
+  "updated_at": "2025-11-10T12:05:00Z"
+}
+```
+
+#### 错误响应
+
+**工作空间不存在**：
+```http
+HTTP/1.1 404 Not Found
+
+{
+  "error": "Workspace not found",
+  "code": "NOT_FOUND"
+}
+```
+
+**请求验证失败**：
+```http
+HTTP/1.1 400 Bad Request
+
+{
+  "error": "Invalid request: ports is required",
+  "code": "INVALID_REQUEST"
+}
+```
+
+---
+
+### 6. 重置工作空间
+
+重置工作空间到初始状态（删除旧容器，重新创建并执行脚本）。
+
+```http
+POST /api/workspaces/:id/reset
+X-ViBox-Token: {token}
+```
+
+#### 路径参数
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | string | 工作空间 ID |
+
+#### 功能说明
+
+1. 停止并删除旧容器
+2. 使用原始配置创建新容器
+3. 重新执行所有初始化脚本
+4. 保留工作空间 ID、配置和端口映射
+
+**使用场景**：
+- 脚本执行失败，需要重新运行
+- 容器状态混乱，需要恢复干净环境
+- 测试脚本，需要多次重置
+
+#### 成功响应
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "message": "Workspace reset successfully",
+  "workspace": {
+    "id": "ws-a1b2c3d4",
+    "name": "my-workspace",
+    "container_id": "docker-new123",
+    "status": "creating",
+    "updated_at": "2025-11-10T12:10:00Z"
+  }
+}
+```
+
+**状态说明**：
+- 重置后状态为 `creating`
+- 脚本执行完成后自动更新为 `running`
+- 脚本执行失败时更新为 `error`
+
+#### 错误响应
+
+**工作空间不存在**：
+```http
+HTTP/1.1 404 Not Found
+
+{
+  "error": "Workspace not found",
+  "code": "NOT_FOUND"
+}
+```
+
+**Docker 操作失败**：
+```http
+HTTP/1.1 500 Internal Server Error
+
+{
+  "error": "Failed to create container: unable to pull image",
   "code": "DOCKER_ERROR"
 }
 ```
