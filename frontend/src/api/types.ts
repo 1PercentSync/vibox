@@ -1,12 +1,12 @@
-export interface Workspace {
-  id: string
+// API Type Definitions for ViBox Frontend
+// Based on API_SPECIFICATION.md
+
+export type WorkspaceStatus = 'creating' | 'running' | 'error' | 'failed'
+
+export interface Script {
   name: string
-  container_id?: string
-  status: 'creating' | 'running' | 'error' | 'failed'
-  created_at: string
-  config: WorkspaceConfig
-  ports?: Record<string, string>
-  error?: string
+  content: string
+  order: number
 }
 
 export interface WorkspaceConfig {
@@ -14,10 +14,15 @@ export interface WorkspaceConfig {
   scripts: Script[]
 }
 
-export interface Script {
+export interface Workspace {
+  id: string
   name: string
-  content: string
-  order: number
+  container_id?: string
+  status: WorkspaceStatus
+  created_at: string
+  config: WorkspaceConfig
+  ports?: Record<string, string>
+  error?: string
 }
 
 export interface CreateWorkspaceRequest {
@@ -29,4 +34,26 @@ export interface CreateWorkspaceRequest {
 
 export interface UpdatePortsRequest {
   ports: Record<string, string>
+}
+
+export interface ResetWorkspaceResponse {
+  message: string
+  workspace: Workspace
+}
+
+export interface LoginRequest {
+  token: string
+}
+
+export interface LoginResponse {
+  message: string
+}
+
+export interface LogoutResponse {
+  message: string
+}
+
+export interface DeleteWorkspaceResponse {
+  message: string
+  id: string
 }
