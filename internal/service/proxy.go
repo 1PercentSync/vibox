@@ -104,8 +104,27 @@ func (s *ProxyService) createReverseProxy(containerIP string, port int) *httputi
 		// Call the original director first
 		originalDirector(req)
 
-		// Remove ViBox authentication headers to prevent leaking to container
+		// Remove ViBox authentication to prevent leaking to container
 		// This allows container applications to use their own authentication
+
+		// 1. Remove ViBox authentication cookie
+		if cookies := req.Cookies(); len(cookies) > 0 {
+			// Filter out vibox-token cookie
+			filteredCookies := make([]*http.Cookie, 0, len(cookies))
+			for _, cookie := range cookies {
+				if cookie.Name != "vibox-token" {
+					filteredCookies = append(filteredCookies, cookie)
+				}
+			}
+
+			// Rebuild Cookie header with filtered cookies
+			req.Header.Del("Cookie")
+			for _, cookie := range filteredCookies {
+				req.AddCookie(cookie)
+			}
+		}
+
+		// 2. Remove legacy X-ViBox-Token header (if any)
 		req.Header.Del("X-ViBox-Token")
 
 		// Log the outgoing request

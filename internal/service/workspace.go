@@ -88,7 +88,7 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req CreateWorksp
 		containerID, err := s.dockerSvc.CreateContainer(bgCtx, containerCfg)
 		if err != nil {
 			utils.Error("Failed to create container", "workspaceID", workspaceID, "error", err)
-			s.updateWorkspaceStatus(workspaceID, domain.StatusError, fmt.Sprintf("Failed to create container: %v", err))
+			s.updateWorkspaceStatus(workspaceID, domain.StatusFailed, fmt.Sprintf("Failed to create container: %v", err))
 			return
 		}
 
@@ -107,7 +107,7 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req CreateWorksp
 		err = s.dockerSvc.StartContainer(bgCtx, containerID)
 		if err != nil {
 			utils.Error("Failed to start container", "workspaceID", workspaceID, "containerID", utils.ShortID(containerID), "error", err)
-			s.updateWorkspaceStatus(workspaceID, domain.StatusError, fmt.Sprintf("Failed to start container: %v", err))
+			s.updateWorkspaceStatus(workspaceID, domain.StatusFailed, fmt.Sprintf("Failed to start container: %v", err))
 			return
 		}
 
@@ -374,7 +374,7 @@ func (s *WorkspaceService) ResetWorkspace(ctx context.Context, id string) error 
 		containerID, err := s.dockerSvc.CreateContainer(bgCtx, containerCfg)
 		if err != nil {
 			utils.Error("Failed to create container during reset", "workspaceID", id, "error", err)
-			s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Failed to create container: %v", err))
+			s.updateWorkspaceStatus(id, domain.StatusFailed, fmt.Sprintf("Failed to create container: %v", err))
 			return
 		}
 
@@ -384,7 +384,7 @@ func (s *WorkspaceService) ResetWorkspace(ctx context.Context, id string) error 
 		if err := s.repo.Update(workspace); err != nil {
 			utils.Error("Failed to update workspace with new container ID", "workspaceID", id, "error", err)
 			_ = s.dockerSvc.RemoveContainer(bgCtx, containerID)
-			s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Failed to update workspace: %v", err))
+			s.updateWorkspaceStatus(id, domain.StatusFailed, fmt.Sprintf("Failed to update workspace: %v", err))
 			return
 		}
 
@@ -392,7 +392,7 @@ func (s *WorkspaceService) ResetWorkspace(ctx context.Context, id string) error 
 		err = s.dockerSvc.StartContainer(bgCtx, containerID)
 		if err != nil {
 			utils.Error("Failed to start container during reset", "workspaceID", id, "containerID", utils.ShortID(containerID), "error", err)
-			s.updateWorkspaceStatus(id, domain.StatusError, fmt.Sprintf("Failed to start container: %v", err))
+			s.updateWorkspaceStatus(id, domain.StatusFailed, fmt.Sprintf("Failed to start container: %v", err))
 			return
 		}
 
@@ -463,7 +463,7 @@ func (s *WorkspaceService) RestoreWorkspaces(ctx context.Context) error {
 			containerID, err := s.dockerSvc.CreateContainer(bgCtx, containerCfg)
 			if err != nil {
 				utils.Error("Failed to create container during restoration", "workspaceID", workspace.ID, "error", err)
-				s.updateWorkspaceStatus(workspace.ID, domain.StatusError, fmt.Sprintf("Failed to create container: %v", err))
+				s.updateWorkspaceStatus(workspace.ID, domain.StatusFailed, fmt.Sprintf("Failed to create container: %v", err))
 				return
 			}
 
@@ -481,7 +481,7 @@ func (s *WorkspaceService) RestoreWorkspaces(ctx context.Context) error {
 			err = s.dockerSvc.StartContainer(bgCtx, containerID)
 			if err != nil {
 				utils.Error("Failed to start container during restoration", "workspaceID", workspace.ID, "containerID", utils.ShortID(containerID), "error", err)
-				s.updateWorkspaceStatus(workspace.ID, domain.StatusError, fmt.Sprintf("Failed to start container: %v", err))
+				s.updateWorkspaceStatus(workspace.ID, domain.StatusFailed, fmt.Sprintf("Failed to start container: %v", err))
 				return
 			}
 

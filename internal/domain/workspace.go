@@ -6,10 +6,10 @@ import "time"
 type WorkspaceStatus string
 
 const (
-	StatusCreating WorkspaceStatus = "creating"
-	StatusRunning  WorkspaceStatus = "running"
-	StatusStopped  WorkspaceStatus = "stopped"
-	StatusError    WorkspaceStatus = "error"
+	StatusCreating WorkspaceStatus = "creating" // Container is being created or scripts are running
+	StatusRunning  WorkspaceStatus = "running"  // Container is running normally
+	StatusError    WorkspaceStatus = "error"    // Script failed but container is still running (Terminal accessible)
+	StatusFailed   WorkspaceStatus = "failed"   // Container creation/startup failed or stopped (Terminal not accessible)
 )
 
 // Workspace represents a development workspace with a Docker container

@@ -28,6 +28,7 @@ func SetupRouter(
 	router.Use(middleware.CORSMiddleware())
 
 	// Create handlers
+	authHandler := handler.NewAuthHandler(cfg.APIToken)
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceSvc)
 	terminalHandler := handler.NewTerminalHandler(terminalSvc, workspaceSvc, dockerSvc)
 	proxyHandler := handler.NewProxyHandler(proxySvc, workspaceSvc, dockerSvc)
@@ -39,6 +40,13 @@ func SetupRouter(
 			"service": "vibox",
 		})
 	})
+
+	// Authentication endpoints (no auth required for login)
+	auth := router.Group("/api/auth")
+	{
+		auth.POST("/login", authHandler.Login)
+		auth.POST("/logout", authHandler.Logout) // Logout can work without auth
+	}
 
 	// API routes (with auth)
 	api := router.Group("/api")
