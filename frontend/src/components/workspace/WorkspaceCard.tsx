@@ -17,12 +17,12 @@ export function WorkspaceCard({ workspace, onDelete, onReset }: WorkspaceCardPro
   // Status configuration
   const statusConfig = {
     creating: {
-      color: 'default' as const,
+      color: 'warning' as const,
       label: 'Creating...',
       canUseTerminal: false
     },
     running: {
-      color: 'default' as const,
+      color: 'success' as const,
       label: 'Running',
       canUseTerminal: true
     },
@@ -57,15 +57,15 @@ export function WorkspaceCard({ workspace, onDelete, onReset }: WorkspaceCardPro
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="hover:shadow-lg transition-shadow duration-200">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle>{workspace.name}</CardTitle>
           <Badge variant={config.color}>{config.label}</Badge>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           {workspace.config.image}
         </p>
@@ -97,7 +97,7 @@ export function WorkspaceCard({ workspace, onDelete, onReset }: WorkspaceCardPro
         )}
       </CardContent>
 
-      <CardFooter className="flex flex-wrap gap-2">
+      <CardFooter className="flex flex-wrap gap-2 pt-4 border-t border-border">
         <Button
           size="sm"
           disabled={!canUseTerminal}

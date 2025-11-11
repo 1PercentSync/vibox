@@ -1,36 +1,80 @@
 @import "tailwindcss";
 
-@theme {
-  /* shadcn UI colors - using oklch for better color accuracy */
-  --color-background: oklch(100% 0 0);
-  --color-foreground: oklch(9% 0.024 285.885);
+:root {
+  /* shadcn UI colors - using hsl for better compatibility */
+  --background: 240 10% 98%;
+  --foreground: 240 10% 15%;
 
-  --color-card: oklch(100% 0 0);
-  --color-card-foreground: oklch(9% 0.024 285.885);
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 15%;
 
-  --color-popover: oklch(100% 0 0);
-  --color-popover-foreground: oklch(9% 0.024 285.885);
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 15%;
 
-  --color-primary: oklch(14% 0.026 285.885);
-  --color-primary-foreground: oklch(98% 0.008 264.436);
+  --primary: 245 58% 51%;
+  --primary-foreground: 240 10% 98%;
 
-  --color-secondary: oklch(96.1% 0.008 264.436);
-  --color-secondary-foreground: oklch(14% 0.026 285.885);
+  --secondary: 240 10% 95%;
+  --secondary-foreground: 240 10% 25%;
 
-  --color-muted: oklch(96.1% 0.008 264.436);
-  --color-muted-foreground: oklch(51.4% 0.014 265.755);
+  --muted: 240 10% 95%;
+  --muted-foreground: 240 5% 48%;
 
-  --color-accent: oklch(96.1% 0.008 264.436);
-  --color-accent-foreground: oklch(14% 0.026 285.885);
+  --accent: 240 10% 94%;
+  --accent-foreground: 240 10% 25%;
 
-  --color-destructive: oklch(62% 0.22 25);
-  --color-destructive-foreground: oklch(98% 0.008 264.436);
+  --destructive: 0 72% 58%;
+  --destructive-foreground: 240 10% 98%;
 
-  --color-border: oklch(91.4% 0.009 264.052);
-  --color-input: oklch(91.4% 0.009 264.052);
-  --color-ring: oklch(9% 0.024 285.885);
+  --success: 142 71% 45%;
+  --success-foreground: 240 10% 98%;
 
-  --radius: 0.5rem;
+  --warning: 38 92% 50%;
+  --warning-foreground: 240 10% 15%;
+
+  --border: 240 6% 90%;
+  --input: 240 6% 90%;
+  --ring: 245 58% 51%;
+
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius: 0.75rem;
 }
 
 /* Custom animations */
