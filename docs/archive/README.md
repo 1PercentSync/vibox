@@ -46,6 +46,16 @@ These documents record the completion status of each frontend module during Phas
 
 ---
 
+### Development Testing Guide
+
+- `TESTING.md` - Frontend testing guide with mock server
+
+**Status**: ✅ Archived
+**Archived Date**: 2025-11-11
+**Reason**: Development testing guide used during Phase 2 frontend development. Archived for reference as testing procedures are now documented in frontend/README.md.
+
+---
+
 ### Future Feature Proposals
 
 - `SCRIPT_AND_PRESET_PROPOSAL.md` - Script Library & Workspace Presets proposal
