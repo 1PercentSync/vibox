@@ -14,14 +14,15 @@ const (
 
 // Workspace represents a development workspace with a Docker container
 type Workspace struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	ContainerID string          `json:"container_id"`
-	Status      WorkspaceStatus `json:"status"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	Config      WorkspaceConfig `json:"config"`
-	Error       string          `json:"error,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	ContainerID string            `json:"container_id,omitempty"` // Runtime field, not persisted
+	Status      WorkspaceStatus   `json:"status,omitempty"`       // Runtime field, not persisted
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at,omitempty"` // Runtime field, for API responses
+	Config      WorkspaceConfig   `json:"config"`
+	Ports       map[string]string `json:"ports,omitempty"` // Port label mappings (port number -> service name)
+	Error       string            `json:"error,omitempty"` // Runtime field, not persisted
 }
 
 // WorkspaceConfig holds configuration for a workspace

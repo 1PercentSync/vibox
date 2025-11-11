@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/1PercentSync/vibox/internal/service"
 	"github.com/1PercentSync/vibox/pkg/utils"
@@ -101,5 +102,79 @@ func (h *WorkspaceHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Workspace deleted successfully",
 		"id":      id,
+	})
+}
+
+// UpdatePorts handles PUT /api/workspaces/:id/ports - Update workspace port mappings
+func (h *WorkspaceHandler) UpdatePorts(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Ports map[string]string `json:"ports" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Warn("Invalid update ports request", "error", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request: " + err.Error(),
+			"code":  "INVALID_REQUEST",
+		})
+		return
+	}
+
+	err := h.service.UpdatePorts(c.Request.Context(), id, req.Ports)
+	if err != nil {
+		utils.Error("Failed to update workspace ports", "id", id, "error", err.Error())
+		// Check if workspace not found
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Workspace not found",
+				"code":  "NOT_FOUND",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to update ports: " + err.Error(),
+			"code":  "INTERNAL_ERROR",
+		})
+		return
+	}
+
+	// Get updated workspace to return
+	workspace, _ := h.service.GetWorkspace(id)
+
+	utils.Info("Workspace ports updated successfully", "id", id)
+	c.JSON(http.StatusOK, workspace)
+}
+
+// ResetWorkspace handles POST /api/workspaces/:id/reset - Reset workspace to initial state
+func (h *WorkspaceHandler) ResetWorkspace(c *gin.Context) {
+	id := c.Param("id")
+
+	err := h.service.ResetWorkspace(c.Request.Context(), id)
+	if err != nil {
+		utils.Error("Failed to reset workspace", "id", id, "error", err.Error())
+		// Check if workspace not found
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Workspace not found",
+				"code":  "NOT_FOUND",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to reset workspace: " + err.Error(),
+			"code":  "INTERNAL_ERROR",
+		})
+		return
+	}
+
+	// Get workspace to return
+	workspace, _ := h.service.GetWorkspace(id)
+
+	utils.Info("Workspace reset initiated successfully", "id", id)
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Workspace reset successfully",
+		"workspace": workspace,
 	})
 }

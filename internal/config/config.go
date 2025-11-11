@@ -14,6 +14,7 @@ type Config struct {
 	DefaultImage string
 	MemoryLimit  int64
 	CPULimit     int64
+	DataDir      string // Directory for persistent data storage
 }
 
 // Load reads configuration from environment variables
@@ -25,6 +26,7 @@ func Load() *Config {
 		DefaultImage: getEnv("DEFAULT_IMAGE", "ubuntu:22.04"),
 		MemoryLimit:  getEnvInt64("MEMORY_LIMIT", 512*1024*1024), // 512MB default
 		CPULimit:     getEnvInt64("CPU_LIMIT", 1000000000),       // 1 CPU default
+		DataDir:      getEnv("DATA_DIR", "./data"),               // Default to ./data in development
 	}
 
 	return cfg

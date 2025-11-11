@@ -12,6 +12,7 @@ import (
 	"github.com/1PercentSync/vibox/pkg/utils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -351,6 +352,41 @@ func (s *DockerService) CopyToContainer(ctx context.Context, containerID string,
 
 	utils.Debug("File copied successfully", "containerID", utils.ShortID(containerID), "path", path)
 	return nil
+}
+
+// ListContainers lists containers matching the given filters
+func (s *DockerService) ListContainers(ctx context.Context, filterMap map[string]string) ([]types.Container, error) {
+	utils.Debug("Listing containers", "filters", filterMap)
+
+	// Create filter args
+	filterArgs := filters.NewArgs()
+
+	// Build filter arguments if provided
+	if len(filterMap) > 0 {
+		// For simplicity, we support label filters which is the main use case
+		for key, value := range filterMap {
+			if key == "label" {
+				// Label filter: we pass the label value directly
+				// Docker will match containers with this label
+				filterArgs.Add("label", value)
+			}
+		}
+	}
+
+	// Create list options with all containers (including stopped)
+	listOptions := container.ListOptions{
+		All:     true,
+		Filters: filterArgs,
+	}
+
+	containers, err := s.client.ContainerList(ctx, listOptions)
+	if err != nil {
+		utils.Error("Failed to list containers", "error", err)
+		return nil, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	utils.Debug("Listed containers", "count", len(containers))
+	return containers, nil
 }
 
 // Close closes the Docker client connection
