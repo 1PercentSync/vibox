@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { flushSync } from 'react-dom'
 import { getDefaultStore } from 'jotai'
 import { setTokenAtom } from '@/stores/auth'
 import { toast } from 'sonner'
@@ -17,8 +18,11 @@ client.interceptors.response.use(
   (error) => {
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      // Clear token and redirect to login
-      store.set(setTokenAtom, null)
+      // Use flushSync to ensure synchronous state update
+      // Prevents race condition when component unmounts before state update
+      flushSync(() => {
+        store.set(setTokenAtom, null)
+      })
       toast.error('Session expired. Please login again.')
       window.location.href = '/login'
       return Promise.reject(error)

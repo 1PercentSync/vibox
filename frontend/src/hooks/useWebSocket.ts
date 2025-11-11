@@ -14,8 +14,12 @@ export function useWebSocket(url: string): UseWebSocketReturn {
   const [token] = useAtom(tokenAtom)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
+  const reconnectAttemptsRef = useRef<number>(0)
   const [status, setStatus] = useState<WebSocketStatus>('disconnected')
   const urlRef = useRef(url)
+
+  const MAX_RECONNECT_ATTEMPTS = 10
+  const INITIAL_RECONNECT_DELAY = 1000
 
   // Update url ref when url changes
   useEffect(() => {
@@ -53,17 +57,29 @@ export function useWebSocket(url: string): UseWebSocketReturn {
       ws.onopen = () => {
         console.log('WebSocket connected')
         setStatus('connected')
+        // Reset reconnect attempts on successful connection
+        reconnectAttemptsRef.current = 0
       }
 
       ws.onclose = () => {
         console.log('WebSocket disconnected')
         setStatus('disconnected')
 
-        // Auto-reconnect after 3 seconds
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log('Attempting to reconnect...')
-          connect()
-        }, 3000)
+        // Auto-reconnect with exponential backoff if under max attempts
+        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+          const delay = Math.min(
+            INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttemptsRef.current),
+            30000 // Max 30 seconds
+          )
+          reconnectAttemptsRef.current++
+
+          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS}) in ${delay}ms...`)
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect()
+          }, delay)
+        } else {
+          console.warn('Max reconnection attempts reached. Please reconnect manually.')
+        }
       }
 
       ws.onerror = (error) => {
@@ -80,6 +96,8 @@ export function useWebSocket(url: string): UseWebSocketReturn {
 
   const reconnect = useCallback(() => {
     console.log('Manual reconnection triggered')
+    // Reset attempts on manual reconnect
+    reconnectAttemptsRef.current = 0
     connect()
   }, [connect])
 
